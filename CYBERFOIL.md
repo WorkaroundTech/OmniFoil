@@ -35,6 +35,20 @@ Tinfoil/CyberFoil-style header set:
 - `Hauth`
 - `Uauth`
 
+**Important:** When Tinfoil/CyberFoil headers are detected, the root endpoint returns:
+
+```json
+{
+  "success": "Message of the day (or empty string)",
+  "files": [
+    { "url": "/api/get_game/1#file.nsp", "size": 123456 }
+  ],
+  "directories": [...]
+}
+```
+
+**The `success` field must always be present** (even if empty string) for CyberFoil compatibility. CyberFoil may freeze/timeout if this field is missing.
+
 ## Endpoints
 
 ## `GET /api/shop/sections`

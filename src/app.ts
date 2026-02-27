@@ -7,6 +7,7 @@ import { PORT, BASES, getAuthPair, CACHE_TTL, SUCCESS_MESSAGE, LOG_FORMAT } from
 import { type RequestContext } from "./types";
 import { authorize, timing, logging, errorHandler, compose } from "./middleware";
 import { router } from "./routes";
+import { initializeTitleDB } from "./services/titledb";
 
 const asciiHeader = `
 ╔════════════════════════════════════════╗
@@ -14,7 +15,7 @@ const asciiHeader = `
 ╚════════════════════════════════════════╝
 `;
 
-export function setupServer() {
+export async function setupServer() {
   console.log(asciiHeader);
   console.log(`> Scanning directories:`, BASES.map((b) => `${b.alias} -> ${b.path}`));
 
@@ -32,6 +33,10 @@ export function setupServer() {
   }
 
   console.log(`> Log format: ${LOG_FORMAT}`);
+
+  // Initialize TitleDB early
+  console.log(`\n> Initializing TitleDB...`);
+  await initializeTitleDB();
 
   /**
    * Setup middleware chain with error handler

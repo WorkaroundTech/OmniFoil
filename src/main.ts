@@ -7,5 +7,4 @@
 
 import { setupServer, printEndpoints } from "./app";
 
-setupServer();
-printEndpoints();
+await setupServer();

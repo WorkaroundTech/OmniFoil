@@ -4,11 +4,14 @@
 
 import { BASES, GLOB_PATTERN, SUCCESS_MESSAGE, CACHE_TTL } from "../config";
 import { encodePath } from "../lib/paths";
+import { identifyFile, parseGameName, getDisplayName } from "../lib/identification";
+import { getTitleInfo } from "./titledb";
+import type { AppType } from "../types";
 
 export interface ShopData {
   files: Array<{ url: string; size: number }>;
   directories: string[];
-  success?: string;
+  success: string;
 }
 
 export interface CatalogFileEntry {
@@ -19,6 +22,15 @@ export interface CatalogFileEntry {
   size: number;
   name: string;
   appId: string;
+  // Enhanced metadata from TitleDB and file identification
+  titleId: string | null;
+  titleName: string | null;
+  appType: AppType;
+  version: string;
+  category: string[];
+  iconUrl: string | null;
+  bannerUrl: string | null;
+  baseTitleId: string | null;
 }
 
 interface ShopSectionsItem {
@@ -27,7 +39,7 @@ interface ShopSectionsItem {
   title_id: string | null;
   app_id: string;
   app_version: string;
-  app_type: "BASE";
+  app_type: AppType;
   category: string;
   icon_url: string;
   url: string;
@@ -64,15 +76,27 @@ function buildAppIdFromNumber(id: number): string {
 }
 
 function toSectionsItem(entry: CatalogFileEntry): ShopSectionsItem {
+  // Use enriched metadata from TitleDB and file identification
+  const displayName = entry.titleName || entry.name;
+  const category = entry.category.length > 0 ? entry.category.join(", ") : "";
+  const iconUrl = entry.iconUrl ? `/api/shop/icon/${entry.titleId}` : "";
+  
+  // For CyberFoil compatibility with AeroFoil's API contract:
+  // - For BASE games: title_id = the base game's title
+  // - For UPDATES: title_id = the base game's title (for grouping by base)
+  // - For DLC: title_id = the base game's title (for grouping by base)
+  // - app_id is always the file's own title ID
+  const titleIdForResponse = entry.appType === "BASE" ? entry.titleId : entry.baseTitleId;
+  
   return {
-    name: entry.name,
-    title_name: entry.name,
-    title_id: null,
+    name: displayName,
+    title_name: displayName,
+    title_id: titleIdForResponse,
     app_id: entry.appId,
-    app_version: "0",
-    app_type: "BASE",
-    category: "",
-    icon_url: "",
+    app_version: entry.version,
+    app_type: entry.appType,
+    category,
+    icon_url: iconUrl,
     url: `/api/get_game/${entry.id}#${entry.filename}`,
     size: entry.size,
     file_id: entry.id,
@@ -83,11 +107,46 @@ function toSectionsItem(entry: CatalogFileEntry): ShopSectionsItem {
 
 function buildSectionsPayload(entries: CatalogFileEntry[], limit: number): ShopSectionsPayload {
   const safeLimit = Math.max(1, Number.isFinite(limit) ? Math.floor(limit) : 50);
-  const sortedByNewest = [...entries].sort((a, b) => b.id - a.id);
-  const sortedByName = [...entries].sort((a, b) => a.name.localeCompare(b.name));
+  
+  // Separate entries by type
+  const baseGames = entries.filter(e => e.appType === "BASE");
+  const updates = entries.filter(e => e.appType === "UPDATE");
+  const dlc = entries.filter(e => e.appType === "DLC");
+  
+  // Sort base games
+  const sortedByNewest = [...baseGames].sort((a, b) => b.id - a.id);
+  const sortedByName = [...baseGames].sort((a, b) => {
+    const nameA = a.titleName || a.name;
+    const nameB = b.titleName || b.name;
+    return nameA.localeCompare(nameB);
+  });
 
   const newItems = sortedByNewest.slice(0, 40).map(toSectionsItem);
   const recommendedItems = [...newItems];
+  
+  // Group updates by base title ID and get latest version per title
+  // Following AeroFoil's pattern: group by the base game's title_id
+  const updatesByBaseTitle = new Map<string, CatalogFileEntry>();
+  for (const update of updates) {
+    if (!update.baseTitleId) continue;
+    
+    const existing = updatesByBaseTitle.get(update.baseTitleId);
+    if (!existing || compareVersions(update.version, existing.version) > 0) {
+      updatesByBaseTitle.set(update.baseTitleId, update);
+    }
+  }
+  const updateItems = Array.from(updatesByBaseTitle.values())
+    .sort((a, b) => (a.titleName || a.name).localeCompare(b.titleName || b.name))
+    .map(toSectionsItem);
+  
+  // Group DLC by app_id (the DLC's own titleId)
+  // Following AeroFoil's pattern: group by the DLC's own app_id
+  // Multiple DLC for the same base game have different app_ids, so they won't be grouped together
+  // We keep all DLC and let the client handle grouping by base_title_id if needed
+  const dlcItems = [...dlc]
+    .sort((a, b) => (a.titleName || a.name).localeCompare(b.titleName || b.name))
+    .map(toSectionsItem);
+  
   const allItems = sortedByName.map(toSectionsItem);
   const limitedAllItems = allItems.slice(0, safeLimit);
 
@@ -95,8 +154,8 @@ function buildSectionsPayload(entries: CatalogFileEntry[], limit: number): ShopS
     sections: [
       { id: "new", title: "New", items: newItems },
       { id: "recommended", title: "Recommended", items: recommendedItems },
-      { id: "updates", title: "Updates", items: [] },
-      { id: "dlc", title: "DLC", items: [] },
+      { id: "updates", title: "Updates", items: updateItems },
+      { id: "dlc", title: "DLC", items: dlcItems },
       {
         id: "all",
         title: "All",
@@ -106,6 +165,22 @@ function buildSectionsPayload(entries: CatalogFileEntry[], limit: number): ShopS
       },
     ],
   };
+}
+
+/**
+ * Compare two version strings (simple numeric comparison)
+ */
+function compareVersions(v1: string, v2: string): number {
+  const parts1 = v1.split(".").map(p => parseInt(p) || 0);
+  const parts2 = v2.split(".").map(p => parseInt(p) || 0);
+  
+  for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
+    const p1 = parts1[i] || 0;
+    const p2 = parts2[i] || 0;
+    if (p1 !== p2) return p1 - p2;
+  }
+  
+  return 0;
 }
 
 async function scanLibraryFiles(): Promise<{ files: ScannedFileEntry[]; directories: string[] }> {
@@ -160,21 +235,59 @@ function isCacheValid(): boolean {
 async function buildShopCatalog(limitForAllSection: number = 50): Promise<ShopCatalog> {
   const scanned = await scanLibraryFiles();
 
-  const entries: CatalogFileEntry[] = scanned.files.map((entry, index) => {
-    const id = index + 1;
-    const appId = buildAppIdFromNumber(id);
-    const withoutExt = entry.filename.replace(/\.[^/.]+$/, "");
-
-    return {
-      id,
-      virtualPath: entry.virtualPath,
-      absPath: entry.absPath,
-      filename: entry.filename,
-      size: entry.size,
-      name: withoutExt,
-      appId,
-    };
-  });
+  const entries: CatalogFileEntry[] = await Promise.all(
+    scanned.files.map(async (entry, index) => {
+      const id = index + 1;
+      
+      // Identify file metadata from filename
+      const identification = identifyFile(entry.filename);
+      
+      // For CyberFoil compatibility with AeroFoil's API contract:
+      // - app_id should be the file's own title_id (or a derived identifier for this file)
+      // - For DLC: app_id = DLC's own title_id
+      // - For updates: app_id = update's own title_id
+      // - For base games: app_id = base game's title_id
+      // We use the titleId directly as app_id for proper client-side linking
+      const appId = identification.titleId || buildAppIdFromNumber(id);
+      
+      // Get display name from filename parsing
+      const parsedName = parseGameName(entry.filename);
+      
+      // Try to enrich with TitleDB data
+      let titleName: string | null = null;
+      let category: string[] = [];
+      let iconUrl: string | null = null;
+      let bannerUrl: string | null = null;
+      
+      if (identification.titleId) {
+        const titleInfo = await getTitleInfo(identification.titleId);
+        if (titleInfo) {
+          titleName = titleInfo.name;
+          category = titleInfo.category || [];
+          iconUrl = titleInfo.iconUrl || null;
+          bannerUrl = titleInfo.bannerUrl || null;
+        }
+      }
+      
+      return {
+        id,
+        virtualPath: entry.virtualPath,
+        absPath: entry.absPath,
+        filename: entry.filename,
+        size: entry.size,
+        name: parsedName,
+        appId,
+        titleId: identification.titleId,
+        titleName,
+        appType: identification.appType,
+        version: identification.version,
+        category,
+        iconUrl,
+        bannerUrl,
+        baseTitleId: identification.baseTitleId || null,
+      };
+    })
+  );
 
   const shopData: ShopData = {
     files: entries.map((entry) => ({
@@ -182,11 +295,8 @@ async function buildShopCatalog(limitForAllSection: number = 50): Promise<ShopCa
       size: entry.size,
     })),
     directories: scanned.directories,
+    success: SUCCESS_MESSAGE || "",
   };
-
-  if (SUCCESS_MESSAGE) {
-    shopData.success = SUCCESS_MESSAGE;
-  }
 
   return {
     shopData,

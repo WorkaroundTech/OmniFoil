@@ -69,6 +69,37 @@ Copy `.env.example` to `.env` and configure the following variables:
 | `SUCCESS_MESSAGE` | Optional message displayed in Tinfoil when the shop is loaded. Great for MOTD or custom greetings. | (empty) |
 | `LOG_FORMAT` | Morgan-style log format: `tiny`, `short`, `dev`, `common`, or `combined`. | `dev` |
 
+### TitleDB & Metadata Enrichment
+
+**tinfoil-bolt** now supports TitleDB integration to provide rich game metadata for CyberFoil clients. This enables:
+
+- **Real game titles** (instead of filename-based names)
+- **Game cover artwork** (icons and banners)
+- **Category tags** (genres)
+- **Version information**
+- **Update/DLC detection and grouping**
+
+| Variable | Description | Default |
+| --- | --- | --- |
+| `TITLEDB_ENABLED` | Enable TitleDB integration for metadata enrichment | `true` |
+| `TITLEDB_REGION` | Region for TitleDB data (US, EU, JP, etc.) | `US` |
+| `TITLEDB_LANGUAGE` | Language code (en, es, fr, de, ja, etc.) | `en` |
+| `TITLEDB_CACHE_DIR` | Directory to store downloaded TitleDB files | `./data/titledb` |
+| `TITLEDB_AUTO_UPDATE` | Auto-download TitleDB data on server start | `true` |
+| `MEDIA_CACHE_DIR` | Directory to store cached game artwork | `./data/media` |
+| `MEDIA_CACHE_TTL` | Media cache TTL in seconds | `604800` (7 days) |
+
+**How it works:**
+
+1. On startup, tinfoil-bolt downloads TitleDB datasets (titles, versions) based on your region/language
+2. When scanning your library, it attempts to extract title IDs from filenames
+3. If a title ID is found, it enriches the game entry with TitleDB metadata
+4. Game icons and banners are served via `/api/shop/icon/:title_id` and `/api/shop/banner/:title_id`
+5. CyberFoil clients automatically display rich metadata with cover art
+
+**Note:** TitleDB data is cached locally. The first startup may take a few moments to download the database. Subsequent startups use the cached data unless `TITLEDB_AUTO_UPDATE=true`.
+
+
 ### Authentication (Optional)
 
 You can protect all endpoints with HTTP Basic Auth by setting either `AUTH_USER` + `AUTH_PASS` or a single `AUTH_CREDENTIALS` value (`user:pass`). If none are set, authentication is disabled.
@@ -111,7 +142,8 @@ Note: Keep the server on a trusted LAN. If your client supports Basic Auth, set 
 2. Tinfoil/CyberFoil-style requests (with Tinfoil headers) receive direct shop JSON at `/`.
 3. Legacy shop endpoints remain available at `/shop.json` and `/shop.tfl`.
 4. CyberFoil-compatible endpoints are available at `/api/shop/sections` and `/api/get_game/:id`.
-5. Files are still available via legacy path-based downloads at `/files/{alias}/{relative-path}`.
+5. Media endpoints serve game artwork at `/api/shop/icon/:title_id` and `/api/shop/banner/:title_id`.
+6. Files are still available via legacy path-based downloads at `/files/{alias}/{relative-path}`.
 
 ## Advanced Features
 

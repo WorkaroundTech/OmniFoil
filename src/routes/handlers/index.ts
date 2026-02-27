@@ -15,17 +15,40 @@ function isTinfoilLikeRequest(req: Request): boolean {
   return TINFOIL_HEADERS.every((header) => req.headers.has(header));
 }
 
+function isCyberFoilRequest(req: Request): boolean {
+  const userAgent = req.headers.get("user-agent") || "";
+  return userAgent.toLowerCase().includes("cyberfoil");
+}
+
+function getClientType(req: Request): string {
+  const accept = req.headers.get("accept") || "";
+  const isBrowser = accept.includes("text/html");
+  
+  if (isTinfoilLikeRequest(req)) {
+    return isCyberFoilRequest(req) ? "CyberFoil" : "Tinfoil";
+  }
+  
+  if (isBrowser) {
+    return "Browser";
+  }
+  
+  return "Generic";
+}
+
 const indexHandlerImpl: Handler = async (req: Request, ctx: RequestContext) => {
   const url = new URL(req.url);
   const accept = req.headers.get("accept") || "";
   const isBrowser = accept.includes("text/html");
+  const clientType = getClientType(req);
 
   if (isTinfoilLikeRequest(req)) {
+    console.log(`[${clientType}] Serving shop payload to ${ctx.remoteAddress || "unknown"}`);
     const shopData = await buildShopData();
     return Response.json(shopData);
   }
 
   if (isBrowser) {
+    console.log(`[${clientType}] Serving HTML index to ${ctx.remoteAddress || "unknown"}`);
     if (!(await INDEX_HTML.exists())) {
       throw new ServiceError({
         statusCode: 500,
@@ -38,6 +61,7 @@ const indexHandlerImpl: Handler = async (req: Request, ctx: RequestContext) => {
     });
   }
 
+  console.log(`[${clientType}] Serving JSON index to ${ctx.remoteAddress || "unknown"}`);
   const indexPayload = buildIndexPayload();
   return Response.json(indexPayload);
 };
