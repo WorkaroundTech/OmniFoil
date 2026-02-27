@@ -79,7 +79,6 @@ function toSectionsItem(entry: CatalogFileEntry): ShopSectionsItem {
   // Use enriched metadata from TitleDB and file identification
   const displayName = entry.titleName || entry.name;
   const category = entry.category.length > 0 ? entry.category.join(", ") : "";
-  const iconUrl = entry.iconUrl ? `/api/shop/icon/${entry.titleId}` : "";
   
   // For CyberFoil compatibility with AeroFoil's API contract:
   // - For BASE games: title_id = the base game's title
@@ -87,6 +86,11 @@ function toSectionsItem(entry: CatalogFileEntry): ShopSectionsItem {
   // - For DLC: title_id = the base game's title (for grouping by base)
   // - app_id is always the file's own title ID
   const titleIdForResponse = entry.appType === "BASE" ? entry.titleId : entry.baseTitleId;
+  
+  // Icon URL should point to the base game's icon (for updates/DLC) or the game's own icon (for base)
+  // This ensures consistency and matches how metadata was fetched from TitleDB
+  const iconTitleId = entry.appType === "BASE" ? entry.titleId : entry.baseTitleId;
+  const iconUrl = entry.iconUrl ? `/api/shop/icon/${iconTitleId}` : "";
   
   return {
     name: displayName,
@@ -254,13 +258,18 @@ async function buildShopCatalog(limitForAllSection: number = 50): Promise<ShopCa
       const parsedName = parseGameName(entry.filename);
       
       // Try to enrich with TitleDB data
+      // For updates/DLC, use the base game's title_id to get the metadata
+      // This way updates inherit their base game's name, category, and artwork
       let titleName: string | null = null;
       let category: string[] = [];
       let iconUrl: string | null = null;
       let bannerUrl: string | null = null;
       
-      if (identification.titleId) {
-        const titleInfo = await getTitleInfo(identification.titleId);
+      // Use base title ID if available (for updates/DLC), otherwise use the file's title ID (for base games)
+      const titleIdForMetadata = identification.baseTitleId || identification.titleId;
+      
+      if (titleIdForMetadata) {
+        const titleInfo = await getTitleInfo(titleIdForMetadata);
         if (titleInfo) {
           titleName = titleInfo.name;
           category = titleInfo.category || [];

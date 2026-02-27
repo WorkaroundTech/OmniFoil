@@ -97,13 +97,17 @@ function parseTitlesData(data: any): Map<string, TitleDBEntry> {
     return titles;
   }
   
-  // TitleDB format: { "titleId": { name, publisher, category, ... }, ... }
-  for (const [titleId, info] of Object.entries(data)) {
+  // TitleDB format: { "decimalId": { id: "hexTitleId", name, publisher, category, ... }, ... }
+  for (const [_decimalId, info] of Object.entries(data)) {
     if (typeof info !== "object" || !info) continue;
     
     const entry = info as any;
+    // Use the hex id field from the entry, not the decimal key
+    const hexTitleId = (entry.id || "").toUpperCase();
+    if (!hexTitleId) continue;
+    
     const titleEntry: TitleDBEntry = {
-      id: titleId.toUpperCase(),
+      id: hexTitleId,
       name: entry.name || "Unknown Title",
       publisher: entry.publisher,
       category: Array.isArray(entry.category) ? entry.category : entry.category ? [entry.category] : undefined,
