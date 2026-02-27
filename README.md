@@ -107,10 +107,11 @@ Note: Keep the server on a trusted LAN. If your client supports Basic Auth, set 
 
 ### How It Works
 
-1. The root endpoint (`/` or `/tinfoil`) returns an index listing `shop.json` and `shop.tfl`
-2. Tinfoil requests `/shop.tfl` which contains the actual game library with relative URLs
-3. Each configured directory is aliased (e.g., `games`, `games-2`) to keep paths unique across multiple mounts
-4. Files are served from `/files/{alias}/{relative-path}`
+1. The root endpoint (`/` or `/tinfoil`) returns an index for browsers and generic clients.
+2. Tinfoil/CyberFoil-style requests (with Tinfoil headers) receive direct shop JSON at `/`.
+3. Legacy shop endpoints remain available at `/shop.json` and `/shop.tfl`.
+4. CyberFoil-compatible endpoints are available at `/api/shop/sections` and `/api/get_game/:id`.
+5. Files are still available via legacy path-based downloads at `/files/{alias}/{relative-path}`.
 
 ## Advanced Features
 
@@ -167,6 +168,18 @@ curl -H "Range: bytes=-536870912" http://localhost:3000/files/games/game.nsp -o 
 Tinfoil will fetch the index, then request `/shop.tfl` to load your library. Your "New Games" tab will populate automatically.
 
 **Note:** If you have enabled Basic Auth on the server, Tinfoil's File Browser will prompt for credentials when connecting. Leave username/password blank if auth is disabled.
+
+## CyberFoil Setup
+
+In CyberFoil, set your eShop URL to:
+
+- `http://<server-ip>:3000`
+
+CyberFoil can use:
+
+- `GET /` (direct shop payload for Tinfoil/CyberFoil header-based requests)
+- `GET /api/shop/sections`
+- `GET /api/get_game/:id`
 
 ## Supported Formats
 

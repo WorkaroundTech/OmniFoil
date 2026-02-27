@@ -29,8 +29,8 @@ describe("lib/shop", () => {
 
       if (shopData.files.length > 0) {
         const file = shopData.files[0];
-        // URLs should be encoded and start with ../files/
-        expect(file?.url).toContain("../files/");
+        // URLs should use CyberFoil-compatible id-based downloads
+        expect(file?.url).toContain("/api/get_game/");
       }
     });
 

@@ -72,7 +72,9 @@ export function setupServer() {
 export function printEndpoints() {
   console.log(`\n>> Server is up and listening on port: ${PORT}`);
   console.log(`>> Endpoints:`);
-  console.log(`   GET /          - Index listing`);
-  console.log(`   GET /shop.tfl  - Game library (Tinfoil format)`);
-  console.log(`   GET /files/*   - File downloads`);
+  console.log(`   GET /                  - Index or shop payload (Tinfoil/CyberFoil headers)`);
+  console.log(`   GET /shop.tfl          - Game library (legacy Tinfoil format)`);
+  console.log(`   GET /api/shop/sections - CyberFoil sections payload`);
+  console.log(`   GET /api/get_game/:id  - CyberFoil-compatible file downloads`);
+  console.log(`   GET /files/*           - File downloads (legacy path-based)`);
 }

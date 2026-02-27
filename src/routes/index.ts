@@ -7,6 +7,7 @@ import { type Handler, type RequestContext } from "../types";
 import { indexHandler } from "./handlers/index";
 import { shopHandler } from "./handlers/shop";
 import { filesHandler } from "./handlers/files";
+import { cyberfoilSectionsHandler, getGameHandler } from "./handlers/cyberfoil";
 
 export const router: Handler = async (req: Request, ctx: RequestContext) => {
   const url = new URL(req.url);
@@ -26,6 +27,15 @@ export const router: Handler = async (req: Request, ctx: RequestContext) => {
     return filesHandler(req, ctx);
   }
 
-  // 4. Health/Status endpoint
+  // 4. CyberFoil-compatible endpoints
+  if (url.pathname === "/api/shop/sections") {
+    return cyberfoilSectionsHandler(req, ctx);
+  }
+
+  if (/^\/api\/get_game\/\d+$/.test(url.pathname)) {
+    return getGameHandler(req, ctx);
+  }
+
+  // 5. Health/Status endpoint
   return new Response(`* tinfoil-bolt is active.\nIndex: / or /tinfoil\nShop: /shop.tfl`, { status: 200 });
 };
