@@ -53,7 +53,8 @@ const getIconImpl: Handler = async (req: Request, ctx: RequestContext) => {
   const pathParts = url.pathname.split("/");
   const titleId = pathParts[pathParts.length - 1];
   
-  if (!titleId || titleId.length !== 16) {
+  // Validate title ID format: 16 hex characters
+  if (!titleId || !/^[0-9A-Fa-f]{16}$/.test(titleId)) {
     throw new ServiceError({
       statusCode: 400,
       message: "Invalid title ID",
@@ -95,7 +96,8 @@ const getBannerImpl: Handler = async (req: Request, ctx: RequestContext) => {
   const pathParts = url.pathname.split("/");
   const titleId = pathParts[pathParts.length - 1];
   
-  if (!titleId || titleId.length !== 16) {
+  // Validate title ID format: 16 hex characters
+  if (!titleId || !/^[0-9A-Fa-f]{16}$/.test(titleId)) {
     throw new ServiceError({
       statusCode: 400,
       message: "Invalid title ID",

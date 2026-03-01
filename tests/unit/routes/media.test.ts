@@ -67,7 +67,7 @@ describe("routes/media", () => {
         "image/png",
         "image/jpeg",
         "image/jpg",
-      ]).toContain(response.headers.get("content-type"));
+      ]).toContain(response.headers.get("content-type")!);
     });
   });
 
@@ -129,7 +129,7 @@ describe("routes/media", () => {
         "image/png",
         "image/jpeg",
         "image/jpg",
-      ]).toContain(response.headers.get("content-type"));
+      ]).toContain(response.headers.get("content-type")!);
     });
 
     it("should return different placeholder dimensions than icon", async () => {

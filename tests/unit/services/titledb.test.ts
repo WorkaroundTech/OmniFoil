@@ -9,9 +9,14 @@ import {
 } from "../../../src/services/titledb";
 
 describe("services/titledb", () => {
-  // Initialize TitleDB before running tests
-  // This will download/cache the TitleDB data
+  // Note: These tests will attempt to download TitleDB data from the network.
+  // To run offline, set TITLEDB_ENABLED=false before running tests.
+  // For CI/CD, consider mocking fetch or pre-populating cache directories.
+  
   beforeAll(async () => {
+    // Initialize TitleDB before running tests
+    // This will use cached data if available, otherwise download
+    console.log("Initializing TitleDB for tests...");
     await initializeTitleDB();
   });
 
@@ -57,7 +62,7 @@ describe("services/titledb", () => {
       const searchResults = await searchTitles("Zelda", 1);
       
       if (searchResults.length > 0) {
-        const titleId = searchResults[0].id;
+        const titleId = searchResults[0]!.id;
         const info = await getTitleInfo(titleId);
         
         if (info) {
@@ -137,7 +142,7 @@ describe("services/titledb", () => {
       const searchResults = await searchTitles("Game", 1);
       
       if (searchResults.length > 0) {
-        const version = await getLatestVersion(searchResults[0].id);
+        const version = await getLatestVersion(searchResults[0]!.id);
         
         // Should be either string or null
         expect(version === null || typeof version === "string").toBe(true);
@@ -150,7 +155,7 @@ describe("services/titledb", () => {
       const searchResults = await searchTitles("Pokemon", 1);
       
       if (searchResults.length > 0) {
-        const titleId = searchResults[0].id;
+        const titleId = searchResults[0]!.id;
         const info = await getTitleInfo(titleId);
         
         expect(info).toBeTruthy();

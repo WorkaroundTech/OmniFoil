@@ -187,7 +187,8 @@ export async function cleanMediaCache(): Promise<void> {
           const age = now - stats;
           
           if (age > ttlMs) {
-            await Bun.file(filePath).writer().end();
+            // Use delete() to actually remove the file
+            await Bun.file(filePath).delete();
             deletedCount++;
           }
         } catch (error) {

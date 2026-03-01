@@ -1,5 +1,5 @@
 {
-  "name": "OmniFoil",
+  "name": "omnifoil",
   "private": true,
   "scripts": {
     "start": "bun run src/main.ts",

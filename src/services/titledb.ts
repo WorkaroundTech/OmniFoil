@@ -12,6 +12,7 @@ import {
   TITLEDB_CACHE_DIR,
   TITLEDB_AUTO_UPDATE,
   TITLEDB_BASE_URL,
+  TITLEDB_CACHE_TTL,
 } from "../config";
 
 let titleDBCache: TitleDBCache | null = null;
@@ -19,10 +20,80 @@ let isInitialized = false;
 let initPromise: Promise<void> | null = null;
 
 /**
+ * Metadata file tracking last update times for cached files
+ */
+interface CacheMetadata {
+  [filename: string]: number; // timestamp
+}
+
+let cacheMetadata: CacheMetadata = {};
+
+/**
  * Get the path to a cached TitleDB file
  */
 function getCachePath(filename: string): string {
   return join(TITLEDB_CACHE_DIR, filename);
+}
+
+/**
+ * Get the path to the cache metadata file
+ */
+function getMetadataPath(): string {
+  return join(TITLEDB_CACHE_DIR, ".cache-metadata.json");
+}
+
+/**
+ * Load cache metadata from disk
+ */
+async function loadCacheMetadata(): Promise<void> {
+  const metadataPath = getMetadataPath();
+  
+  if (!existsSync(metadataPath)) {
+    cacheMetadata = {};
+    return;
+  }
+  
+  try {
+    const file = Bun.file(metadataPath);
+    const data = await file.json();
+    cacheMetadata = typeof data === "object" && data !== null ? data : {};
+    console.log(`[TITLEDB] Loaded cache metadata from ${metadataPath}`);
+  } catch (error) {
+    console.warn(`[TITLEDB] Failed to load cache metadata, starting fresh:`, error);
+    cacheMetadata = {};
+  }
+}
+
+/**
+ * Save cache metadata to disk
+ */
+async function saveCacheMetadata(): Promise<void> {
+  try {
+    ensureCacheDir();
+    const metadataPath = getMetadataPath();
+    await Bun.write(metadataPath, JSON.stringify(cacheMetadata));
+  } catch (error) {
+    console.warn(`[TITLEDB] Failed to save cache metadata:`, error);
+  }
+}
+
+/**
+ * Check if a cached file is still fresh based on TTL
+ */
+function isCacheFresh(filename: string): boolean {
+  const lastUpdated = cacheMetadata[filename];
+  if (!lastUpdated) return false;
+  
+  const now = Date.now();
+  const ageSecs = (now - lastUpdated) / 1000;
+  const isFresh = ageSecs < TITLEDB_CACHE_TTL;
+  
+  if (!isFresh) {
+    const ageHours = Math.round(ageSecs / 3600);
+    console.log(`[TITLEDB] Cache for ${filename} is stale (${ageHours} hours old, TTL: ${TITLEDB_CACHE_TTL / 3600} hours)`);
+  }
+  
+  return isFresh;
 }
 
 /**
@@ -52,10 +123,15 @@ async function downloadTitleDBFile(filename: string): Promise<any | null> {
     
     const data = await response.json();
     
-    // Cache the downloaded file
+    // Cache the downloaded file (minified to reduce disk usage)
     ensureCacheDir();
     const cachePath = getCachePath(filename);
-    await Bun.write(cachePath, JSON.stringify(data, null, 2));
+    await Bun.write(cachePath, JSON.stringify(data));
+    
+    // Update metadata with current timestamp
+    cacheMetadata[filename] = Date.now();
+    await saveCacheMetadata();
+    
     console.log(`[TITLEDB] Cached ${filename} to ${cachePath}`);
     
     return data;
@@ -67,12 +143,15 @@ async function downloadTitleDBFile(filename: string): Promise<any | null> {
 
 /**
  * Load a TitleDB file from cache or download it
+ * 
+ * When autoUpdate is true, downloads if cache is stale (based on TTL)
+ * When autoUpdate is false, loads from cache and only downloads if missing
  */
-async function loadTitleDBFile(filename: string, forceDownload: boolean = false): Promise<any | null> {
+async function loadTitleDBFile(filename: string, autoUpdate: boolean = true): Promise<any | null> {
   const cachePath = getCachePath(filename);
   
-  // Try to load from cache first if not forcing download
-  if (!forceDownload && existsSync(cachePath)) {
+  // If auto-update is disabled, prefer cache over network
+  if (!autoUpdate && existsSync(cachePath)) {
     try {
       const file = Bun.file(cachePath);
       const data = await file.json();
@@ -83,8 +162,36 @@ async function loadTitleDBFile(filename: string, forceDownload: boolean = false)
     }
   }
   
-  // Download if not in cache or forced
-  return await downloadTitleDBFile(filename);
+  // If auto-update is enabled, check if cache is still fresh
+  if (autoUpdate) {
+    if (existsSync(cachePath) && isCacheFresh(filename)) {
+      try {
+        const file = Bun.file(cachePath);
+        const data = await file.json();
+        console.log(`[TITLEDB] Using fresh cached ${filename}`);
+        return data;
+      } catch (error) {
+        console.warn(`[TITLEDB] Failed to load cached ${filename}, will re-download:`, error);
+      }
+    }
+    
+    // Cache is stale or missing - download fresh
+    return await downloadTitleDBFile(filename);
+  }
+  
+  // No cache and auto-update disabled - try stale cache or fail gracefully
+  if (existsSync(cachePath)) {
+    try {
+      const file = Bun.file(cachePath);
+      const data = await file.json();
+      console.log(`[TITLEDB] Loaded stale ${filename} from cache (auto-update disabled)`);
+      return data;
+    } catch (error) {
+      console.error(`[TITLEDB] Failed to load cached ${filename}:`, error);
+    }
+  }
+  
+  return null;
 }
 
 /**
@@ -197,8 +304,12 @@ export async function initializeTitleDB(): Promise<void> {
     
     console.log("[TITLEDB] Initializing TitleDB service...");
     console.log(`[TITLEDB] Region: ${TITLEDB_REGION}, Language: ${TITLEDB_LANGUAGE}`);
+    console.log(`[TITLEDB] Cache TTL: ${TITLEDB_CACHE_TTL / 3600} hours`);
     
     ensureCacheDir();
+    
+    // Load cache metadata from disk
+    await loadCacheMetadata();
     
     const titlesFilename = `${TITLEDB_REGION}.${TITLEDB_LANGUAGE}.json`;
     const versionsFilename = "versions.json";
@@ -305,6 +416,8 @@ export async function refreshTitleDB(): Promise<void> {
   isInitialized = false;
   initPromise = null;
   titleDBCache = null;
+  cacheMetadata = {}; // Clear metadata to force re-download
+  await saveCacheMetadata();
   await initializeTitleDB();
 }
 

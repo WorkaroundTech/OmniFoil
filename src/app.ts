@@ -34,9 +34,15 @@ export async function setupServer() {
 
   console.log(`> Log format: ${LOG_FORMAT}`);
 
-  // Initialize TitleDB early
+  // Initialize TitleDB in the background so startup is not blocked
   console.log(`\n> Initializing TitleDB...`);
-  await initializeTitleDB();
+  initializeTitleDB()
+    .then(() => {
+      console.log(`> TitleDB initialization complete.`);
+    })
+    .catch((err) => {
+      console.error(`> Failed to initialize TitleDB:`, err);
+    });
 
   /**
    * Setup middleware chain with error handler

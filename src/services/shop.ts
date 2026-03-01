@@ -4,7 +4,7 @@
 
 import { BASES, GLOB_PATTERN, SUCCESS_MESSAGE, CACHE_TTL, REFERRER } from "../config";
 import { encodePath } from "../lib/paths";
-import { identifyFile, parseGameName, getDisplayName } from "../lib/identification";
+import { identifyFile, parseGameName } from "../lib/identification";
 import { getTitleInfo } from "./titledb";
 import type { AppType } from "../types";
 

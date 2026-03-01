@@ -9,6 +9,25 @@ import { methodValidator } from "../../middleware";
 import { buildShopSections, getCatalogEntryById } from "../../services/shop";
 import { parseRange, isSingleRange, getContentRangeHeader } from "../../lib/range";
 
+/**
+ * Sanitize filename for Content-Disposition header
+ * Removes or encodes characters that could break the header
+ */
+function sanitizeFilename(filename: string): string {
+  // Remove any control characters and limit to ASCII printable chars
+  let sanitized = filename
+    .replace(/[\x00-\x1F\x7F-\x9F]/g, "") // Remove control characters
+    .replace(/[\"\/;]/g, "") // Remove quotes and semicolons that break headers
+    .trim();
+  
+  // If the filename is empty after sanitization, provide a default
+  if (!sanitized) {
+    sanitized = "file.nsp";
+  }
+  
+  return sanitized;
+}
+
 const sectionsHandlerImpl: Handler = async (req: Request, ctx: RequestContext) => {
   const url = new URL(req.url);
   const rawLimit = parseInt(url.searchParams.get("limit") || "50", 10);
@@ -97,7 +116,7 @@ const getGameHandlerImpl: Handler = async (req: Request, ctx: RequestContext) =>
   return new Response(file, {
     headers: {
       "Content-Type": "application/octet-stream",
-      "Content-Disposition": `attachment; filename="${entry.filename}"`,
+      "Content-Disposition": `attachment; filename="${sanitizeFilename(entry.filename)}"`,
       "Content-Length": fileSize.toString(),
       "Accept-Ranges": "bytes",
       "Cache-Control": "public, max-age=31536000",
