@@ -10,8 +10,8 @@ describe("HTTP Method Validation", () => {
   let server: Server<any>;
   let baseUrl: string;
 
-  beforeAll(() => {
-    server = setupServer();
+  beforeAll(async () => {
+    server = await setupServer();
     baseUrl = `http://localhost:${server.port}`;
   });
 

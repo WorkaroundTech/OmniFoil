@@ -2,10 +2,11 @@
  * Media route handlers for serving game artwork (icons, banners)
  */
 
-import type { Handler } from "../../types";
+import type { Handler, RequestContext } from "../../types";
 import { ServiceError } from "../../types";
 import { getTitleInfo } from "../../services/titledb";
 import { getMediaFile } from "../../lib/media-cache";
+import { methodValidator } from "../../middleware";
 
 /**
  * Create a placeholder icon SVG (300x300)
@@ -47,7 +48,7 @@ function createPlaceholderBanner(): Response {
  * GET /api/shop/icon/:title_id
  * Serve game icon image
  */
-export const getIcon: Handler = async (req, ctx) => {
+const getIconImpl: Handler = async (req: Request, ctx: RequestContext) => {
   const url = new URL(req.url);
   const pathParts = url.pathname.split("/");
   const titleId = pathParts[pathParts.length - 1];
@@ -89,7 +90,7 @@ export const getIcon: Handler = async (req, ctx) => {
  * GET /api/shop/banner/:title_id
  * Serve game banner image
  */
-export const getBanner: Handler = async (req, ctx) => {
+const getBannerImpl: Handler = async (req: Request, ctx: RequestContext) => {
   const url = new URL(req.url);
   const pathParts = url.pathname.split("/");
   const titleId = pathParts[pathParts.length - 1];
@@ -126,3 +127,6 @@ export const getBanner: Handler = async (req, ctx) => {
     },
   });
 };
+
+export const getIcon = methodValidator(["GET", "HEAD"])(getIconImpl);
+export const getBanner = methodValidator(["GET", "HEAD"])(getBannerImpl);

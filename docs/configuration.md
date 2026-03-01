@@ -36,6 +36,14 @@ All configuration is done through environment variables. No configuration files 
 | `AUTH_USER` | string | - | No | HTTP Basic Auth username |
 | `AUTH_PASS` | string | - | No | HTTP Basic Auth password |
 | `AUTH_CREDENTIALS` | string | - | No | HTTP Basic Auth as `user:pass` (alternative) |
+| `REFERRER` | string | - | No | Host verification URL for shop security |
+| `TITLEDB_ENABLED` | boolean | `true` | No | Enable TitleDB integration for metadata |
+| `TITLEDB_REGION` | string | `US` | No | TitleDB region: US, JP, BR, etc. |
+| `TITLEDB_LANGUAGE` | string | `en` | No | TitleDB language: en, ja, pt, etc. |
+| `TITLEDB_CACHE_DIR` | string | `./data/titledb` | No | Directory for TitleDB cache files |
+| `TITLEDB_AUTO_UPDATE` | boolean | `true` | No | Auto-download TitleDB on startup |
+| `MEDIA_CACHE_DIR` | string | `./data/media` | No | Directory for cached media (icons/banners) |
+| `MEDIA_CACHE_TTL` | number | `604800` | No | Media cache TTL in seconds (default 7 days) |
 
 ---
 
@@ -288,6 +296,286 @@ environment:
 # .env file (not committed to git)
 AUTH_PASSWORD=very_secure_password_123
 ```
+
+---
+
+### TitleDB Integration
+
+TitleDB provides rich game metadata including titles, descriptions, categories, and artwork URLs. When enabled, the server downloads and caches TitleDB data to enrich game information shown in CyberFoil clients.
+
+#### Enable/Disable TitleDB
+
+**Variable:** `TITLEDB_ENABLED`
+
+**Default:** `true`
+
+**Description:** Enable or disable TitleDB integration for metadata enrichment.
+
+**Examples:**
+```bash
+# Enabled (default)
+TITLEDB_ENABLED=true
+
+# Disabled - use filename-based metadata only
+TITLEDB_ENABLED=false
+```
+
+**When Disabled:**
+- Game names are derived from filenames
+- No category information
+- No icon/banner artwork
+- Updates and DLC sections may be empty
+
+**When Enabled:**
+- Real game titles from TitleDB
+- Category/genre information
+- Icon and banner URLs
+- Better update/DLC grouping
+
+---
+
+#### TitleDB Region
+
+**Variable:** `TITLEDB_REGION`
+
+**Default:** `US`
+
+**Description:** Nintendo eShop region for title data.
+
+**Supported Regions:**
+- `US` - United States (English)
+- `JP` - Japan (Japanese)
+- `BR` - Brazil (Portuguese)
+- Other regions may be available depending on TitleDB dataset
+
+**Examples:**
+```bash
+# US region (default)
+TITLEDB_REGION=US
+
+# Japan region
+TITLEDB_REGION=JP
+
+# Brazil region
+TITLEDB_REGION=BR
+```
+
+**Notes:**
+- Region affects game titles and release information
+- Some titles may only exist in certain regions
+- Choose the region matching your game library
+
+---
+
+#### TitleDB Language
+
+**Variable:** `TITLEDB_LANGUAGE`
+
+**Default:** `en`
+
+**Description:** Language for game titles and descriptions.
+
+**Supported Languages:**
+- `en` - English
+- `ja` - Japanese
+- `pt` - Portuguese
+- Other languages may be available per region
+
+**Examples:**
+```bash
+# English (default)
+TITLEDB_LANGUAGE=en
+
+# Japanese
+TITLEDB_LANGUAGE=ja
+
+# Portuguese
+TITLEDB_LANGUAGE=pt
+```
+
+**Notes:**
+- Language must match available data for the selected region
+- Common combinations: `US/en`, `JP/ja`, `BR/pt`
+
+---
+
+#### TitleDB Cache Directory
+
+**Variable:** `TITLEDB_CACHE_DIR`
+
+**Default:** `./data/titledb`
+
+**Description:** Directory where TitleDB JSON files are cached.
+
+**Examples:**
+```bash
+# Default location
+TITLEDB_CACHE_DIR=./data/titledb
+
+# Custom location
+TITLEDB_CACHE_DIR=/var/cache/tinfoil-bolt/titledb
+
+# Persistent volume (Docker)
+TITLEDB_CACHE_DIR=/data/titledb
+```
+
+**Cached Files:**
+- `{REGION}.{LANGUAGE}.json` - Title database for region/language
+- `versions.json` - Version and release date information
+
+**Directory Structure:**
+```
+data/titledb/
+├── US.en.json
+└── versions.json
+```
+
+**Notes:**
+- Directory is created automatically if it doesn't exist
+- Files are downloaded on first startup (if auto-update enabled)
+- Can be shared between container restarts (Docker volume)
+
+---
+
+#### TitleDB Auto-Update
+
+**Variable:** `TITLEDB_AUTO_UPDATE`
+
+**Default:** `true`
+
+**Description:** Automatically download/update TitleDB data on server startup.
+
+**Examples:**
+```bash
+# Auto-update enabled (default)
+TITLEDB_AUTO_UPDATE=true
+
+# Disabled - use existing cached files only
+TITLEDB_AUTO_UPDATE=false
+```
+
+**Behavior When Enabled:**
+- Downloads TitleDB files on startup if missing
+- Checks for updates (re-downloads if needed)
+- Startup may be slower on first run
+
+**Behavior When Disabled:**
+- Uses existing cached files only
+- Fails if cache files don't exist
+- Faster startup, but may have outdated data
+
+**Use Cases:**
+- **Enabled:** Production deployments, auto-updating metadata
+- **Disabled:** Air-gapped systems, pre-downloaded TitleDB files
+
+---
+
+### Media Cache
+
+Media cache stores downloaded game artwork (icons and banners) locally to avoid repeated downloads from TitleDB servers.
+
+#### Media Cache Directory
+
+**Variable:** `MEDIA_CACHE_DIR`
+
+**Default:** `./data/media`
+
+**Description:** Directory where media files (icons, banners) are cached.
+
+**Examples:**
+```bash
+# Default location
+MEDIA_CACHE_DIR=./data/media
+
+# Custom location
+MEDIA_CACHE_DIR=/var/cache/tinfoil-bolt/media
+
+# Persistent volume (Docker)
+MEDIA_CACHE_DIR=/data/media
+```
+
+**Directory Structure:**
+```
+data/media/
+├── icons/
+│   ├── 0100000000010000.jpg
+│   └── 0100000000020000.png
+└── banners/
+    ├── 0100000000010000.jpg
+    └── 0100000000020000.png
+```
+
+**Notes:**
+- Directory is created automatically if it doesn't exist
+- Images are named by title ID
+- Can grow large with many titles (plan disk space accordingly)
+
+---
+
+#### Media Cache TTL
+
+**Variable:** `MEDIA_CACHE_TTL`
+
+**Default:** `604800` (7 days in seconds)
+
+**Description:** Time in seconds that cached media files remain valid before being re-downloaded.
+
+**Examples:**
+```bash
+# 7 days (default)
+MEDIA_CACHE_TTL=604800
+
+# 30 days
+MEDIA_CACHE_TTL=2592000
+
+# 1 day
+MEDIA_CACHE_TTL=86400
+
+# Effectively permanent (10 years)
+MEDIA_CACHE_TTL=315360000
+```
+
+**Behavior:**
+- Media older than TTL is re-downloaded on next request
+- Lower TTL = fresher artwork, more downloads
+- Higher TTL = less bandwidth, potentially outdated artwork
+
+**Recommendations:**
+
+| Scenario | Recommended TTL | Rationale |
+|----------|----------------|-----------|
+| Stable library | 30 days or more | Artwork rarely changes |
+| Active development | 1-7 days | Get updates frequently |
+| Limited bandwidth | 30+ days | Minimize downloads |
+| Fast connection | 7 days | Balance freshness and efficiency |
+
+---
+
+### Referrer Configuration
+
+**Variable:** `REFERRER`
+
+**Default:** `""` (empty)
+
+**Description:** Optional host verification URL for strict shop security. When set, included in shop responses for Tinfoil/CyberFoil clients.
+
+**Examples:**
+```bash
+# No referrer (default)
+REFERRER=
+
+# Set custom referrer
+REFERRER=https://verified-shop.example.com
+```
+
+**Usage:**
+- Appears in CyberFoil shop response (`referrer` field)
+- Used for host verification in some shop configurations
+- Optional feature, not required for basic operation
+
+**Notes:**
+- Only included in responses when configured
+- Empty string or unset = field not included in response
 
 ---
 
@@ -740,6 +1028,14 @@ SUCCESS_MESSAGE="Welcome to the game library!"
 LOG_FORMAT=combined
 AUTH_USER=nintendo
 AUTH_PASS=switch_fan_2026
+REFERRER=https://shop.example.com
+TITLEDB_ENABLED=true
+TITLEDB_REGION=US
+TITLEDB_LANGUAGE=en
+TITLEDB_CACHE_DIR=./data/titledb
+TITLEDB_AUTO_UPDATE=true
+MEDIA_CACHE_DIR=./data/media
+MEDIA_CACHE_TTL=604800
 ```
 
 ### Testing Configuration

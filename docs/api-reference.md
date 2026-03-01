@@ -12,6 +12,12 @@ This document provides a complete reference for all HTTP endpoints exposed by ti
   - [GET /shop.json](#get-shopjson)
   - [GET /shop.tfl](#get-shoptfl)
   - [GET /files/:path](#get-filespath)
+  - [CyberFoil Endpoints](#cyberfoil-endpoints)
+    - [GET /api/shop/sections](#get-apishopsections)
+    - [GET /api/get_game/:id](#get-apiget_gameid)
+    - [GET /api/shop/icon/:title_id](#get-apishopicontitle_id)
+    - [GET /api/shop/banner/:title_id](#get-apishopbannertitle_id)
+    - [GET /api/saves/list](#get-apisaveslist)
   - [Default Endpoint](#default-endpoint)
 - [HTTP Status Codes](#http-status-codes)
 - [Error Responses](#error-responses)
@@ -312,6 +318,277 @@ The server validates that requested paths:
 - Map to files within configured `GAMES_DIRECTORY` paths
 - Don't contain path traversal attempts (`..`)
 - Exist and are readable
+
+---
+
+## CyberFoil Endpoints
+
+The following endpoints provide CyberFoil-compatible API for Nintendo Switch homebrew clients. These endpoints support enhanced game metadata via TitleDB integration.
+
+### GET /api/shop/sections
+
+**Description:** Returns a CyberFoil-compatible sections payload with game metadata organized into sections: new, recommended, updates, DLC, and all games.
+
+**Query Parameters:**
+- `limit` (optional, number, default: `50`, minimum: `1`) - Maximum items per section for "new" and "recommended" sections
+
+**Request:**
+```bash
+curl http://localhost:3000/api/shop/sections
+
+# With custom limit
+curl http://localhost:3000/api/shop/sections?limit=100
+```
+
+**Response:**
+- Status: `200 OK`
+- Content-Type: `application/json`
+
+**Response Format:**
+```json
+{
+  "sections": [
+    {
+      "id": "new",
+      "title": "New",
+      "items": [...]
+    },
+    {
+      "id": "recommended",
+      "title": "Recommended",
+      "items": [...]
+    },
+    {
+      "id": "updates",
+      "title": "Updates",
+      "items": [...]
+    },
+    {
+      "id": "dlc",
+      "title": "DLC",
+      "items": [...]
+    },
+    {
+      "id": "all",
+      "title": "All",
+      "items": [...],
+      "total": 150,
+      "truncated": false
+    }
+  ]
+}
+```
+
+**Section Item Format:**
+```json
+{
+  "name": "Super Mario Odyssey",
+  "title_name": "Super Mario Odyssey",
+  "title_id": "0100000000010000",
+  "app_id": "0100000000010000",
+  "app_version": 0,
+  "app_type": 0,
+  "category": "Adventure, Platformer",
+  "icon_url": "/api/shop/icon/0100000000010000",
+  "url": "/api/get_game/1#Super Mario Odyssey.nsp",
+  "size": 5678901234,
+  "file_id": 1,
+  "filename": "Super Mario Odyssey.nsp",
+  "download_count": 0
+}
+```
+
+**Field Descriptions:**
+- `name` (string) - Game title from TitleDB or filename
+- `title_name` (string) - Same as name
+- `title_id` (string|null) - Base game's title ID (for grouping updates/DLC)
+- `app_id` (string) - File's own title ID
+- `app_version` (number) - Version number (0 for base, parsed from filename markers like `[v1]`)
+- `app_type` (number) - File type: `0`=BASE, `1`=DLC, `2`=UPDATE
+- `category` (string) - Comma-separated categories from TitleDB
+- `icon_url` (string) - Path to game icon
+- `url` (string) - Download URL in format `/api/get_game/:id#filename`
+- `size` (number) - File size in bytes
+- `file_id` (number) - Unique file identifier
+- `filename` (string) - Original filename
+- `download_count` (number) - Always 0 (tracking not implemented)
+
+**Section Behavior:**
+- **new**: Most recently added files (limited by `limit` param)
+- **recommended**: Same as new (limited by `limit` param)
+- **updates**: Only UPDATE files (app_type=2), grouped by base title
+- **dlc**: Only DLC files (app_type=1), grouped by base title
+- **all**: All files without limit
+
+**Caching:** Response is cached based on `CACHE_TTL` configuration.
+
+---
+
+### GET /api/get_game/:id
+
+**Description:** Downloads a game file by its catalog ID. Supports full downloads and single-range partial downloads.
+
+**Path Parameters:**
+- `id` (number, required) - File ID from catalog
+
+**Request:**
+```bash
+# Full download
+curl http://localhost:3000/api/get_game/1 -o game.nsp
+
+# Range request (partial download)
+curl -H "Range: bytes=0-1048575" http://localhost:3000/api/get_game/1
+```
+
+**Response (Full Download):**
+- Status: `200 OK`
+- Content-Type: `application/octet-stream`
+- Accept-Ranges: `bytes`
+- Content-Disposition: `attachment; filename="Game Name.nsp"`
+- Body: Complete file content
+
+**Response (Range Request):**
+- Status: `206 Partial Content`
+- Content-Type: `application/octet-stream`
+- Accept-Ranges: `bytes`
+- Content-Range: `bytes 0-1048575/5678901234`
+- Content-Disposition: `attachment; filename="Game Name.nsp"`
+- Body: Requested byte range
+
+**Range Request Support:**
+Same as [GET /files/:path](#get-filespath) - supports single-range requests only.
+
+**Error Responses:**
+- `404 Not Found` - File ID not found
+- `416 Range Not Satisfiable` - Invalid range requested
+
+**Notes:**
+- File IDs are assigned sequentially based on catalog order
+- IDs may change when files are added/removed (cache invalidation)
+- Fragment identifier (`#filename`) in URL is ignored by server but used by clients
+
+---
+
+### GET /api/shop/icon/:title_id
+
+**Description:** Serves game icon image for a Nintendo Switch title, proxied from TitleDB or cached locally.
+
+**Path Parameters:**
+- `title_id` (string, required) - 16-character hexadecimal title ID (e.g., `0100000000010000`)
+
+**Request:**
+```bash
+curl http://localhost:3000/api/shop/icon/0100000000010000
+```
+
+**Response (Image Found):**
+- Status: `200 OK`
+- Content-Type: `image/jpeg` or `image/png`
+- Cache-Control: `public, max-age=604800, immutable`
+- Access-Control-Allow-Origin: `*`
+- Body: Icon image (typically 300x300 pixels)
+
+**Response (No Icon Available):**
+- Status: `200 OK`
+- Content-Type: `image/svg+xml`
+- Cache-Control: `public, max-age=3600`
+- Body: Placeholder SVG with "No Icon" text
+
+**Caching:**
+- Downloaded icons are cached locally based on `MEDIA_CACHE_TTL` (default 7 days)
+- Cache directory: `MEDIA_CACHE_DIR` (default `./data/media`)
+- Subsequent requests are served from cache
+
+**Notes:**
+- Returns placeholder instead of 404 for better client compatibility
+- Requires TitleDB integration (`TITLEDB_ENABLED=true`)
+- Icon URLs are fetched from TitleDB metadata
+
+---
+
+### GET /api/shop/banner/:title_id
+
+**Description:** Serves game banner image for a Nintendo Switch title, proxied from TitleDB or cached locally.
+
+**Path Parameters:**
+- `title_id` (string, required) - 16-character hexadecimal title ID
+
+**Request:**
+```bash
+curl http://localhost:3000/api/shop/banner/0100000000010000
+```
+
+**Response (Image Found):**
+- Status: `200 OK`
+- Content-Type: `image/jpeg` or `image/png`
+- Cache-Control: `public, max-age=604800, immutable`
+- Access-Control-Allow-Origin: `*`
+- Body: Banner image (typically 640x360 pixels)
+
+**Response (No Banner Available):**
+- Status: `200 OK`
+- Content-Type: `image/svg+xml`
+- Cache-Control: `public, max-age=3600`
+- Body: Placeholder SVG with "No Banner" text
+
+**Caching:** Same as icon endpoint
+
+**Notes:** Same as icon endpoint
+
+---
+
+### GET /api/saves/list
+
+**Description:** Returns a list of available save data versions for backup management. Currently returns empty list as save management is not yet implemented.
+
+**Request:**
+```bash
+curl http://localhost:3000/api/saves/list
+```
+
+**Response:**
+- Status: `200 OK`
+- Content-Type: `application/json`
+
+**Response Format (Current - Empty):**
+```json
+{
+  "saves": []
+}
+```
+
+**Response Format (When Implemented):**
+```json
+{
+  "saves": [
+    {
+      "title_id": "0x0100000000000000",
+      "name": "Game Title",
+      "save_id": "v1_001",
+      "note": "First Save",
+      "created_at": "2026-03-01T10:30:00Z",
+      "created_ts": 1766397000,
+      "download_url": "https://example.com/saves/save1.bin",
+      "size": 52428800
+    }
+  ]
+}
+```
+
+**Field Descriptions:**
+- `title_id` (string, required) - Nintendo title ID (hex or decimal)
+- `name` (string, optional) - Game title name
+- `save_id` (string, optional) - Unique identifier for this save version
+- `note` (string, optional) - Human-readable description
+- `created_at` (string, optional) - ISO 8601 timestamp
+- `created_ts` (number, optional) - Unix timestamp (seconds)
+- `download_url` (string, optional) - Download URL for this save
+- `size` (number, optional) - File size in bytes
+
+**Notes:**
+- This endpoint is part of CyberFoil save synchronization feature
+- Save upload, download, and delete operations are not yet implemented
+- Future implementation will support save backup and restore
 
 ---
 

@@ -41,6 +41,11 @@ All route handlers are configured to accept only the following methods:
 | `/shop.json` | GET, HEAD |
 | `/shop.tfl` | GET, HEAD |
 | `/files/*` | GET, HEAD |
+| `/api/shop/sections` | GET, HEAD |
+| `/api/get_game/:id` | GET, HEAD |
+| `/api/shop/icon/:title_id` | GET, HEAD |
+| `/api/shop/banner/:title_id` | GET, HEAD |
+| `/api/saves/list` | GET, HEAD |
 
 ### Response Behavior
 

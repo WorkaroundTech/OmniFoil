@@ -8,3 +8,4 @@
 import { setupServer, printEndpoints } from "./app";
 
 await setupServer();
+printEndpoints();

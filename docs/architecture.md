@@ -130,7 +130,12 @@ context.userAgent = req.headers.get('user-agent') || '-'
   '/tinfoil': handlers.index,             // Alternate index
   '/shop.json': handlers.shopJson,        // Shop JSON format
   '/shop.tfl': handlers.shopTfl,          // Shop TFL format
-  '/files/:path': handlers.files,         // File downloads
+  '/files/:path': handlers.files,         // File downloads (legacy)
+  '/api/shop/sections': handlers.sections,     // CyberFoil sections
+  '/api/get_game/:id': handlers.getGame,       // CyberFoil downloads
+  '/api/shop/icon/:title_id': handlers.getIcon,    // Icon media
+  '/api/shop/banner/:title_id': handlers.getBanner, // Banner media
+  '/api/saves/list': handlers.savesList,       // Save sync (stub)
   'default': handlers.default             // Health check
 }
 ```
@@ -581,7 +586,9 @@ src/
 ├── lib/
 │   ├── auth.ts           # Auth credential parsing
 │   ├── cache.ts          # In-memory cache with TTL
+│   ├── identification.ts # File title ID and version extraction
 │   ├── logger.ts         # Morgan-style logging
+│   ├── media-cache.ts    # Media file caching (icons/banners)
 │   ├── paths.ts          # Virtual path resolution
 │   └── range.ts          # HTTP Range parsing
 ├── middleware/
@@ -595,11 +602,15 @@ src/
 │   ├── index.ts          # Router implementation
 │   ├── utils.ts          # Route utilities
 │   └── handlers/
-│       ├── index.ts      # Index/shop handlers
+│       ├── cyberfoil.ts  # CyberFoil API handlers
 │       ├── files.ts      # File download handler
+│       ├── index.ts      # Index/shop handlers
+│       ├── media.ts      # Media (icon/banner) handlers
+│       ├── saves.ts      # Save synchronization handlers
 │       └── shop.ts       # Shop data generation
 ├── services/
-│   └── shop.ts           # Business logic for shop data
+│   ├── shop.ts           # Business logic for shop data
+│   └── titledb.ts        # TitleDB integration and caching
 └── types/
     └── index.ts          # TypeScript type definitions
 ```
@@ -613,8 +624,8 @@ src/
 **middleware/** | Cross-cutting concerns | Auth, logging, timing, errors
 **routes/** | Request routing | URL pattern matching
 **handlers/** | Request/response logic | Parse request, generate response
-**services/** | Business logic | Scan directories, build shop data
-**lib/** | Utility functions | Path encoding, range parsing, caching
+**services/** | Business logic | Shop data, TitleDB integration
+**lib/** | Utility functions | Path encoding, range parsing, caching, identification, media cache
 **config/** | Configuration | Load & validate environment variables
 **types/** | Type definitions | Interfaces and type aliases
 
@@ -633,6 +644,331 @@ handlers/* ← services/* ← lib/* ← config/*
 ```
 
 **Key Principle:** Lower layers don't depend on higher layers (no circular dependencies)
+
+---
+
+## TitleDB Service
+
+### Overview
+
+The TitleDB service provides rich game metadata integration, downloading and caching title information from Nintendo's title database.
+
+**Location:** [src/services/titledb.ts](../src/services/titledb.ts)
+
+**Purpose:**
+- Download TitleDB JSON files (titles, versions)
+- Cache data locally for offline operation
+- Provide lookup functions for title information
+- Enrich game catalog with real titles, categories, artwork
+
+### TitleDB Data Structure
+
+**Title Information:**
+```typescript
+interface TitleInfo {
+  id: string              // Title ID (16 hex chars)
+  name: string            // Game title
+  description?: string    // Game description
+  category?: string[]     // Categories/genres
+  iconUrl?: string        // Icon image URL
+  bannerUrl?: string      // Banner image URL
+  version?: number        // Latest version
+  releaseDate?: string    // Release date
+}
+```
+
+### Service Operations
+
+#### Download and Cache
+
+```typescript
+// Downloads TitleDB files on startup (if auto-update enabled)
+await downloadTitleDB(region, language, cacheDir)
+
+// Files downloaded:
+// - {REGION}.{LANGUAGE}.json (e.g., US.en.json)
+// - versions.json
+```
+
+#### Title Lookup
+
+```typescript
+// Get title information by ID
+const info = await getTitleInfo(titleId)
+
+// Returns null if title not found
+if (info) {
+  console.log(info.name)      // "Super Mario Odyssey"
+  console.log(info.category)  // ["Adventure", "Platformer"]
+  console.log(info.iconUrl)   // "https://..."
+}
+```
+
+### Integration with Shop Service
+
+TitleDB is integrated into the shop service to enrich catalog entries:
+
+```typescript
+// For each file in catalog:
+const titleId = extractTitleId(filename)
+const titleInfo = await getTitleInfo(titleId)
+
+// Enrich catalog entry:
+entry.name = titleInfo?.name || extractNameFromFilename(filename)
+entry.category = titleInfo?.category?.join(', ') || ''
+entry.iconUrl = `/api/shop/icon/${titleId}`
+```
+
+### Configuration
+
+Controlled by environment variables:
+
+- `TITLEDB_ENABLED` - Enable/disable integration
+- `TITLEDB_REGION` - Region (US, JP, BR, etc.)
+- `TITLEDB_LANGUAGE` - Language (en, ja, pt, etc.)
+- `TITLEDB_CACHE_DIR` - Cache directory path
+- `TITLEDB_AUTO_UPDATE` - Auto-download on startup
+
+### Offline Operation
+
+- TitleDB files are cached locally
+- Server can operate offline with cached data
+- No TitleDB = fallback to filename-based metadata
+
+---
+
+## File Identification
+
+### Overview
+
+The identification library extracts title IDs and version information from game filenames using pattern matching.
+
+**Location:** [src/lib/identification.ts](../src/lib/identification.ts)
+
+**Purpose:**
+- Extract title IDs from filenames
+- Determine file type (BASE, UPDATE, DLC)
+- Parse version numbers from filenames
+- Group related files (updates/DLC with base games)
+
+### Title ID Extraction
+
+**Pattern Matching:**
+```typescript
+// Matches common title ID patterns in filenames:
+// - [0100ABCD01234000]
+// - (0100ABCD01234000)
+// - 0100ABCD01234000
+const titleIdRegex = /[\[\(]?([0-9a-fA-F]{16})[\]\)]?/
+
+const titleId = extractTitleId(filename)
+// "Super Mario Odyssey [0100000000010000].nsp" → "0100000000010000"
+```
+
+### File Type Detection
+
+```typescript
+// Determine app_type based on filename markers and title ID
+const appType = determineAppType(filename, titleId)
+
+// Returns:
+// 0 = BASE game
+// 1 = DLC
+// 2 = UPDATE
+```
+
+**Detection Logic:**
+- UPDATE: Filename contains `[UPD]`, `[UPDATE]`, or title ID ends in `800`
+- DLC: Filename contains `[DLC]` or title ID pattern suggests DLC
+- BASE: Default (no special markers)
+
+### Version Parsing
+
+```typescript
+// Extract version from filename patterns:
+// - [v123] → 123
+// - v1.2.3 → 1
+// - (v5) → 5
+const version = extractVersion(filename)
+
+// "Game [v1.0.5].nsp" → 1
+```
+
+### Base Title ID Calculation
+
+```typescript
+// For updates/DLC, calculate the base game title ID
+const baseTitleId = getBaseTitleId(titleId, appType)
+
+// Update: 0100000000010800 → 0100000000010000
+// DLC:    0100000000011000 → 0100000000010000
+```
+
+**Rules:**
+- Updates: Clear bits 11-12 (remove `800`)
+- DLC: Clear bits 12-15
+- BASE: Return as-is
+
+### Limitations
+
+Filename-based identification is heuristic:
+- Not 100% accurate
+- Depends on proper filename conventions
+- Future enhancement: Parse NSP/XCI package metadata
+
+---
+
+## Media Cache
+
+### Overview
+
+The media cache downloads and stores game artwork (icons, banners) locally to minimize repeated downloads from TitleDB servers.
+
+**Location:** [src/lib/media-cache.ts](../src/lib/media-cache.ts)
+
+**Purpose:**
+- Download media files from URLs
+- Cache locally with TTL expiration
+- Serve cached files on subsequent requests
+- Reduce bandwidth and improve performance
+
+### Cache Structure
+
+```
+data/media/
+├── icons/
+│   ├── 0100000000010000.jpg
+│   ├── 0100000000020000.png
+│   └── ...
+└── banners/
+    ├── 0100000000010000.jpg
+    ├── 0100000000020000.png
+    └── ...
+```
+
+### Media Download Flow
+
+```
+Request → Check Cache → Exists & Valid? → Serve Cached File
+                ↓
+                Not in cache or expired
+                ↓
+          Get URL from TitleDB → Download → Save to Cache → Serve File
+```
+
+### Cache Validation
+
+```typescript
+// Check if cached file exists and is not expired
+const isValid = await isCacheValid(filePath, ttl)
+
+// Validation:
+// 1. File exists
+// 2. (current_time - file_mtime) < ttl
+```
+
+### Usage in Media Handlers
+
+```typescript
+// GET /api/shop/icon/:title_id
+const titleId = extractTitleId(request)
+const titleInfo = await getTitleInfo(titleId)
+
+if (titleInfo?.iconUrl) {
+  // Get cached or download
+  const file = await getMediaFile(titleInfo.iconUrl, 'icon', titleId)
+  return new Response(file)
+} else {
+  // Return placeholder SVG
+  return createPlaceholderIcon()
+}
+```
+
+### Configuration
+
+- `MEDIA_CACHE_DIR` - Cache directory (default: `./data/media`)
+- `MEDIA_CACHE_TTL` - Cache TTL in seconds (default: 604800 = 7 days)
+
+### Cache Management
+
+- **Automatic:** Files older than TTL are re-downloaded
+- **Manual:** Delete cache directory to force refresh
+- **Storage:** Plan disk space for many titles (icons ~50-100KB, banners ~100-300KB each)
+
+---
+
+## CyberFoil Handler
+
+### Overview
+
+The CyberFoil handler provides API endpoints for Nintendo Switch homebrew clients (CyberFoil/Tinfoil).
+
+**Location:** [src/routes/handlers/cyberfoil.ts](../src/routes/handlers/cyberfoil.ts)
+
+**Endpoints:**
+- `GET /api/shop/sections` - Sectioned game catalog
+- `GET /api/get_game/:id` - ID-based file downloads
+
+### Sections Endpoint
+
+**Purpose:** Return games organized into sections (new, recommended, updates, dlc, all)
+
+**Implementation:**
+```typescript
+const sectionsHandler: Handler = async (req, ctx) => {
+  const limit = parseInt(req.url.searchParams.get('limit') || '50')
+  
+  // Build sections from enriched catalog
+  const payload = await buildShopSections(limit)
+  
+  return Response.json(payload)
+}
+```
+
+**Section Building Logic:**
+1. Get enriched catalog from shop service
+2. Filter by app_type (0=BASE, 1=DLC, 2=UPDATE)
+3. Sort by modification time (newest first)
+4. Apply limit to "new" and "recommended"
+5. Group updates/DLC by base title ID
+
+### Get Game Endpoint
+
+**Purpose:** Serve files by catalog ID with range support
+
+**Implementation:**
+```typescript
+const getGameHandler: Handler = async (req, ctx) => {
+  const id = extractIdFromPath(req.url)
+  const entry = await getCatalogEntryById(id)
+  
+  if (!entry) {
+    throw new ServiceError(404, 'File not found')
+  }
+  
+  // Handle range requests
+  const range = req.headers.get('range')
+  if (range) {
+    return handleRangeRequest(entry.absPath, range)
+  }
+  
+  // Full download
+  return new Response(Bun.file(entry.absPath), {
+    headers: {
+      'Content-Disposition': `attachment; filename="${entry.filename}"`,
+      'Content-Type': 'application/octet-stream',
+      'Accept-Ranges': 'bytes'
+    }
+  })
+}
+```
+
+### Integration with Shop Service
+
+CyberFoil handler relies on shop service for:
+- File catalog with IDs
+- Metadata enrichment (TitleDB)
+- Caching
 
 ---
 
