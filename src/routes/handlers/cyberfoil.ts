@@ -97,6 +97,7 @@ const getGameHandlerImpl: Handler = async (req: Request, ctx: RequestContext) =>
   return new Response(file, {
     headers: {
       "Content-Type": "application/octet-stream",
+      "Content-Disposition": `attachment; filename="${entry.filename}"`,
       "Content-Length": fileSize.toString(),
       "Accept-Ranges": "bytes",
       "Cache-Control": "public, max-age=31536000",

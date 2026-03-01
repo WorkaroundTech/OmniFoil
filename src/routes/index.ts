@@ -9,6 +9,7 @@ import { shopHandler } from "./handlers/shop";
 import { filesHandler } from "./handlers/files";
 import { cyberfoilSectionsHandler, getGameHandler } from "./handlers/cyberfoil";
 import { getIcon, getBanner } from "./handlers/media";
+import { savesListHandler } from "./handlers/saves";
 
 export const router: Handler = async (req: Request, ctx: RequestContext) => {
   const url = new URL(req.url);
@@ -46,6 +47,11 @@ export const router: Handler = async (req: Request, ctx: RequestContext) => {
     return getBanner(req, ctx);
   }
 
-  // 6. Health/Status endpoint
+  // 7. Save synchronization endpoints
+  if (url.pathname === "/api/saves/list") {
+    return savesListHandler(req, ctx);
+  }
+
+  // 8. Health/Status endpoint
   return new Response(`* tinfoil-bolt is active.\nIndex: / or /tinfoil\nShop: /shop.tfl`, { status: 200 });
 };

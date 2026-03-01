@@ -8,6 +8,42 @@ import { getTitleInfo } from "../../services/titledb";
 import { getMediaFile } from "../../lib/media-cache";
 
 /**
+ * Create a placeholder icon SVG (300x300)
+ */
+function createPlaceholderIcon(): Response {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 300 300">
+  <rect width="300" height="300" fill="#1a1a1a"/>
+  <text x="150" y="150" font-family="Arial, sans-serif" font-size="24" fill="#666" text-anchor="middle" dominant-baseline="middle">No Icon</text>
+</svg>`;
+  
+  return new Response(svg, {
+    headers: {
+      "Content-Type": "image/svg+xml",
+      "Cache-Control": "public, max-age=3600",
+      "Access-Control-Allow-Origin": "*",
+    },
+  });
+}
+
+/**
+ * Create a placeholder banner SVG (640x360)
+ */
+function createPlaceholderBanner(): Response {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360">
+  <rect width="640" height="360" fill="#1a1a1a"/>
+  <text x="320" y="180" font-family="Arial, sans-serif" font-size="32" fill="#666" text-anchor="middle" dominant-baseline="middle">No Banner</text>
+</svg>`;
+  
+  return new Response(svg, {
+    headers: {
+      "Content-Type": "image/svg+xml",
+      "Cache-Control": "public, max-age=3600",
+      "Access-Control-Allow-Origin": "*",
+    },
+  });
+}
+
+/**
  * GET /api/shop/icon/:title_id
  * Serve game icon image
  */
@@ -26,19 +62,15 @@ export const getIcon: Handler = async (req, ctx) => {
   // Get title info from TitleDB
   const titleInfo = await getTitleInfo(titleId);
   if (!titleInfo || !titleInfo.iconUrl) {
-    throw new ServiceError({
-      statusCode: 404,
-      message: "Icon not found for this title",
-    });
+    // Return placeholder SVG instead of 404
+    return createPlaceholderIcon();
   }
   
   // Get media file (cached or download)
   const media = await getMediaFile(titleId, "icon", titleInfo.iconUrl);
   if (!media) {
-    throw new ServiceError({
-      statusCode: 404,
-      message: "Failed to retrieve icon",
-    });
+    // Return placeholder SVG if download fails
+    return createPlaceholderIcon();
   }
   
   // Serve the cached file
@@ -47,7 +79,7 @@ export const getIcon: Handler = async (req, ctx) => {
   return new Response(file, {
     headers: {
       "Content-Type": media.contentType,
-      "Cache-Control": "public, max-age=604800", // 7 days
+      "Cache-Control": "public, max-age=604800, immutable",
       "Access-Control-Allow-Origin": "*",
     },
   });
@@ -72,19 +104,15 @@ export const getBanner: Handler = async (req, ctx) => {
   // Get title info from TitleDB
   const titleInfo = await getTitleInfo(titleId);
   if (!titleInfo || !titleInfo.bannerUrl) {
-    throw new ServiceError({
-      statusCode: 404,
-      message: "Banner not found for this title",
-    });
+    // Return placeholder SVG instead of 404
+    return createPlaceholderBanner();
   }
   
   // Get media file (cached or download)
   const media = await getMediaFile(titleId, "banner", titleInfo.bannerUrl);
   if (!media) {
-    throw new ServiceError({
-      statusCode: 404,
-      message: "Failed to retrieve banner",
-    });
+    // Return placeholder SVG if download fails
+    return createPlaceholderBanner();
   }
   
   // Serve the cached file
@@ -93,7 +121,7 @@ export const getBanner: Handler = async (req, ctx) => {
   return new Response(file, {
     headers: {
       "Content-Type": media.contentType,
-      "Cache-Control": "public, max-age=604800", // 7 days
+      "Cache-Control": "public, max-age=604800, immutable",
       "Access-Control-Allow-Origin": "*",
     },
   });

@@ -1,7 +1,7 @@
 # tinfoil-bolt
 ![tinfoil-bolt logo](bolt-logo-transparent-bg.png)
 
-**tinfoil-bolt** is a lightning-fast, zero-dependency, and lightweight backend server to serve your personal game backup library to Tinfoil on Nintendo Switch.
+**tinfoil-bolt** is a lightning-fast, zero-dependency, and lightweight backend server to serve your personal game backup library to Tinfoil and CyberFoil clients on Nintendo Switch.
 
 Built with [Bun](https://bun.sh), it replaces bloated, unmaintainable alternatives with a clean, modular TypeScript codebase that does exactly what you need and nothing else.
 
@@ -12,6 +12,7 @@ Many existing Tinfoil server solutions suffer from feature creep: auto-updaters 
 **tinfoil-bolt is different:**
 
 * **Zero Dependencies:** No `node_modules` black hole. Uses Bun's native HTTP and FileSystem APIs.
+* **CyberFoil Compatible:** Full support for CyberFoil clients with modern API endpoints, rich metadata, game artwork, and proper update/DLC grouping.
 * **Stateless:** No database to sync. It scans your folders when Tinfoil asks.
 * **Multi-Mount Support:** Seamlessly serve games scattered across multiple drives/mounts (e.g., `/mnt/nas` and `/mnt/usb`) as a single unified library.
 * **Secure:** Designed to run with **Read-Only** access to your files. No risk of deletion or corruption.
@@ -66,7 +67,8 @@ Copy `.env.example` to `.env` and configure the following variables:
 | `PORT` | The port the server listens on. | `3000` |
 | `GAMES_DIRS` | Comma or semicolon-separated list of **absolute paths** where your NSP/NSZ/XCI files are stored. | `/data/games` |
 | `CACHE_TTL` | Cache duration (in seconds) for shop data. Reduces expensive directory scans on network mounts. Set to `0` to disable caching. | `300` |
-| `SUCCESS_MESSAGE` | Optional message displayed in Tinfoil when the shop is loaded. Great for MOTD or custom greetings. | (empty) |
+| `SUCCESS_MESSAGE` | Optional message displayed in Tinfoil/CyberFoil when the shop is loaded. Great for MOTD or custom greetings. | (empty) |
+| `REFERRER` | Optional host URL for client-side host verification. Only included in responses when configured. | (empty) |
 | `LOG_FORMAT` | Morgan-style log format: `tiny`, `short`, `dev`, `common`, or `combined`. | `dev` |
 
 ### TitleDB & Metadata Enrichment

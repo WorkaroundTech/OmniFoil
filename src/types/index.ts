@@ -66,7 +66,9 @@ export interface TitleDBCache {
   lastUpdated: number;
 }
 
-export type AppType = "BASE" | "UPDATE" | "DLC" | "DEMO";
+// AppType numeric values match CyberFoil API spec:
+// 0 = BASE (base game), 1 = DLC, 2 = UPDATE, 3 = DEMO
+export type AppType = 0 | 1 | 2 | 3;
 
 export interface FileIdentification {
   titleId: string | null;

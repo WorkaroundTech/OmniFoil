@@ -2,7 +2,7 @@
  * Shop data building logic
  */
 
-import { BASES, GLOB_PATTERN, SUCCESS_MESSAGE, CACHE_TTL } from "../config";
+import { BASES, GLOB_PATTERN, SUCCESS_MESSAGE, CACHE_TTL, REFERRER } from "../config";
 import { encodePath } from "../lib/paths";
 import { identifyFile, parseGameName, getDisplayName } from "../lib/identification";
 import { getTitleInfo } from "./titledb";
@@ -10,8 +10,8 @@ import type { AppType } from "../types";
 
 export interface ShopData {
   files: Array<{ url: string; size: number }>;
-  directories: string[];
   success: string;
+  referrer?: string;
 }
 
 export interface CatalogFileEntry {
@@ -38,7 +38,7 @@ interface ShopSectionsItem {
   title_name: string;
   title_id: string | null;
   app_id: string;
-  app_version: string;
+  app_version: number;
   app_type: AppType;
   category: string;
   icon_url: string;
@@ -85,11 +85,11 @@ function toSectionsItem(entry: CatalogFileEntry): ShopSectionsItem {
   // - For UPDATES: title_id = the base game's title (for grouping by base)
   // - For DLC: title_id = the base game's title (for grouping by base)
   // - app_id is always the file's own title ID
-  const titleIdForResponse = entry.appType === "BASE" ? entry.titleId : entry.baseTitleId;
+  const titleIdForResponse = entry.appType === 0 ? entry.titleId : entry.baseTitleId; // 0=BASE
   
   // Icon URL should point to the base game's icon (for updates/DLC) or the game's own icon (for base)
   // This ensures consistency and matches how metadata was fetched from TitleDB
-  const iconTitleId = entry.appType === "BASE" ? entry.titleId : entry.baseTitleId;
+  const iconTitleId = entry.appType === 0 ? entry.titleId : entry.baseTitleId; // 0=BASE
   const iconUrl = entry.iconUrl ? `/api/shop/icon/${iconTitleId}` : "";
   
   return {
@@ -97,7 +97,7 @@ function toSectionsItem(entry: CatalogFileEntry): ShopSectionsItem {
     title_name: displayName,
     title_id: titleIdForResponse,
     app_id: entry.appId,
-    app_version: entry.version,
+    app_version: parseInt(entry.version, 10) || 0,
     app_type: entry.appType,
     category,
     icon_url: iconUrl,
@@ -112,10 +112,10 @@ function toSectionsItem(entry: CatalogFileEntry): ShopSectionsItem {
 function buildSectionsPayload(entries: CatalogFileEntry[], limit: number): ShopSectionsPayload {
   const safeLimit = Math.max(1, Number.isFinite(limit) ? Math.floor(limit) : 50);
   
-  // Separate entries by type
-  const baseGames = entries.filter(e => e.appType === "BASE");
-  const updates = entries.filter(e => e.appType === "UPDATE");
-  const dlc = entries.filter(e => e.appType === "DLC");
+  // Separate entries by type (0=BASE, 1=DLC, 2=UPDATE)
+  const baseGames = entries.filter(e => e.appType === 0);
+  const updates = entries.filter(e => e.appType === 2);
+  const dlc = entries.filter(e => e.appType === 1);
   
   // Sort base games
   const sortedByNewest = [...baseGames].sort((a, b) => b.id - a.id);
@@ -125,7 +125,8 @@ function buildSectionsPayload(entries: CatalogFileEntry[], limit: number): ShopS
     return nameA.localeCompare(nameB);
   });
 
-  const newItems = sortedByNewest.slice(0, 40).map(toSectionsItem);
+  // Apply limit to discovery sections (new/recommended) per AeroFoil spec
+  const newItems = sortedByNewest.slice(0, safeLimit).map(toSectionsItem);
   const recommendedItems = [...newItems];
   
   // Group updates by base title ID and get latest version per title
@@ -299,12 +300,12 @@ async function buildShopCatalog(limitForAllSection: number = 50): Promise<ShopCa
   );
 
   const shopData: ShopData = {
+    success: SUCCESS_MESSAGE || "",
+    ...(REFERRER && { referrer: REFERRER }),
     files: entries.map((entry) => ({
       url: `/api/get_game/${entry.id}#${entry.filename}`,
       size: entry.size,
     })),
-    directories: scanned.directories,
-    success: SUCCESS_MESSAGE || "",
   };
 
   return {

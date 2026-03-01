@@ -62,7 +62,7 @@ describe("shop sections endpoint", () => {
       expect(update).toHaveProperty("title_id");
       expect(update).toHaveProperty("app_id");
       expect(update).toHaveProperty("app_type");
-      expect(update.app_type).toBe("UPDATE");
+      expect(update.app_type).toBe(2); // UPDATE = 2
 
       // Update's title_id should be base game's title (for linking by client)
       expect(update.title_id).toMatch(/^[0-9A-Fa-f]{16}$/);
@@ -70,7 +70,7 @@ describe("shop sections endpoint", () => {
       expect(update.app_id).toMatch(/^[0-9A-Fa-f]{16}$/);
 
       // title_id and app_id should be different (for UPDATE)
-      if (update.app_type === "UPDATE") {
+      if (update.app_type === 2) { // UPDATE = 2
         // For updates, title_id = base game, app_id = update's own id
         // The last 3 chars of app_id should be "800" (update marker)
         const appIdLast3 = update.app_id.substring(13).toUpperCase();
@@ -92,7 +92,7 @@ describe("shop sections endpoint", () => {
       expect(dlc).toHaveProperty("title_id");
       expect(dlc).toHaveProperty("app_id");
       expect(dlc).toHaveProperty("app_type");
-      expect(dlc.app_type).toBe("DLC");
+      expect(dlc.app_type).toBe(1); // DLC = 1
 
       // DLC's title_id should be base game's title (for linking by client)
       expect(dlc.title_id).toMatch(/^[0-9A-Fa-f]{16}$/);
@@ -118,13 +118,13 @@ describe("shop sections endpoint", () => {
     // New and recommended should only have BASE games
     if (newSection.items.length > 0) {
       newSection.items.forEach((item: any) => {
-        expect(item.app_type).toBe("BASE");
+        expect(item.app_type).toBe(0); // BASE = 0
       });
     }
 
     if (recommendedSection.items.length > 0) {
       recommendedSection.items.forEach((item: any) => {
-        expect(item.app_type).toBe("BASE");
+        expect(item.app_type).toBe(0); // BASE = 0
       });
     }
   });
@@ -140,7 +140,7 @@ describe("shop sections endpoint", () => {
 
     // All section should only have BASE games (based on AeroFoil implementation)
     allSection.items.forEach((item: any) => {
-      expect(item.app_type).toBe("BASE");
+      expect(item.app_type).toBe(0); // BASE = 0
     });
   });
 

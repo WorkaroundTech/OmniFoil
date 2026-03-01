@@ -110,6 +110,55 @@ curl -H "Accept: application/json" http://localhost:3000/
 - Content-Type: `application/json`
 - Body: Shop data (see [Shop JSON Format](#shop-json-format))
 
+#### Tinfoil/CyberFoil Request
+
+When all required Tinfoil/CyberFoil headers are present, returns CyberFoil-compatible shop payload:
+
+**Request Headers:**
+```
+Theme: Dark
+Uid: <device-id>
+Version: 1.4
+Revision: 1
+Language: en
+Hauth: <hardware-auth-token>
+Uauth: <user-auth-token>
+```
+
+**Response:**
+- Status: `200 OK`
+- Content-Type: `application/json`
+- Body: CyberFoil shop payload
+
+**CyberFoil Shop Format:**
+```json
+{
+  "success": "Welcome to tinfoil-bolt!",
+  "referrer": "https://shop.example.com",
+  "files": [
+    {
+      "url": "/api/get_game/1#game.nsp",
+      "size": 1234567890
+    },
+    {
+      "url": "/api/get_game/2#update.nsp",
+      "size": 987654321
+    }
+  ]
+}
+```
+
+**Fields:**
+- `success` (string): MOTD message from `SUCCESS_MESSAGE` env variable (always present, may be empty)
+- `referrer` (string, optional): Host verification URL from `REFERRER` env variable (only if configured)
+- `files` (array): List of available game files with CyberFoil-compatible download URLs
+  - `url` (string): Download URL using `/api/get_game/:id` format
+  - `size` (number): File size in bytes
+
+**Notes:**
+- This is the format expected by CyberFoil clients running on Nintendo Switch
+- For CyberFoil CLI tools, see [CYBERFOIL.md](../CYBERFOIL.md) for detailed endpoint documentation
+
 ---
 
 ### GET /tinfoil
@@ -127,7 +176,7 @@ curl http://localhost:3000/tinfoil
 
 ### GET /shop.json
 
-**Description:** Returns shop data in JSON format for Tinfoil clients.
+**Description:** Returns shop data in JSON format (legacy Tinfoil format). **Note:** CyberFoil clients should use `GET /` with Tinfoil headers instead for faster, more efficient CyberFoil-specific responses.
 
 **Request:**
 ```bash

@@ -16,6 +16,7 @@ In practice, this means endpoint behavior and JSON field shapes were modeled to 
 - Legacy file path downloads: `GET /files/*`
 - CyberFoil sections: `GET /api/shop/sections`
 - CyberFoil file downloads: `GET /api/get_game/:id`
+- Save synchronization: `GET /api/saves/list` (OPTIONAL)
 
 ## Client Detection at Root (`/`)
 
@@ -40,14 +41,14 @@ Tinfoil/CyberFoil-style header set:
 ```json
 {
   "success": "Message of the day (or empty string)",
+  "referrer": "https://verified-host.com",
   "files": [
     { "url": "/api/get_game/1#file.nsp", "size": 123456 }
-  ],
-  "directories": [...]
+  ]
 }
 ```
 
-**The `success` field must always be present** (even if empty string) for CyberFoil compatibility. CyberFoil may freeze/timeout if this field is missing.
+**The `success` field must always be present** (even if empty string) for CyberFoil compatibility. CyberFoil may freeze/timeout if this field is missing. The `referrer` field is optional and only included when `REFERRER` environment variable is configured for host verification.
 
 ## Endpoints
 
@@ -57,7 +58,7 @@ Returns a CyberFoil-compatible sections payload.
 
 Query params:
 
-- `limit` (optional, default `50`, minimum `1`): limits `all` section items.
+- `limit` (optional, default `50`, minimum `1`): limits items in "new" and "recommended" sections per AeroFoil spec.
 
 Response shape:
 
@@ -81,10 +82,10 @@ Section item shape:
   "title_name": "Game Name",
   "title_id": null,
   "app_id": "0000000000000001",
-  "app_version": "0",
-  "app_type": "BASE",
+  "app_version": 0,
+  "app_type": 0,
   "category": "",
-  "icon_url": "",
+  "icon_url": "/api/shop/icon/0100ABCD01234000",
   "url": "/api/get_game/1#Game Name.nsp",
   "size": 123456789,
   "file_id": 1,
@@ -93,10 +94,16 @@ Section item shape:
 }
 ```
 
-Notes:
+Field notes:
 
-- `updates` and `dlc` sections are currently empty placeholders.
-- `icon_url` is currently empty.
+- `app_version`: Number (0 for base version, parsed from filename `[vN]` marker)
+- `app_type`: Numeric value (0=BASE, 1=DLC, 2=UPDATE) per CyberFoil API spec
+- `title_id`: Base game's title ID (for grouping updates/DLC with their base game)
+- `app_id`: The file's own title ID
+- `icon_url`: Points to base game's icon (populated when TitleDB data available)
+- `category`: Comma-separated categories from TitleDB
+- `updates` and `dlc` sections are populated from library scans
+- `download_count`: Always 0 (tracking not yet implemented)
 
 ## `GET /api/get_game/:id`
 
@@ -105,11 +112,77 @@ Serves a game file by catalog ID.
 - Supports full downloads (`200 OK`)
 - Supports single-range partial downloads (`206 Partial Content`)
 - Returns `416 Range Not Satisfiable` for invalid/unsupported ranges
+- Includes `Content-Disposition: attachment; filename="..."` header
 
 Range headers:
 
 - `Accept-Ranges: bytes`
 - `Content-Range` (for `206` and `416` responses)
+
+## Media Endpoints
+
+### `GET /api/shop/icon/:title_id`
+
+Returns icon image for a Nintendo Switch title.
+
+- Path parameter: `title_id` (16 hex characters)
+- Returns cached image from TitleDB icon URL
+- Falls back to placeholder SVG if not found
+- Cache-Control: `public, max-age=604800, immutable`
+
+### `GET /api/shop/banner/:title_id`
+
+Returns banner image for a Nintendo Switch title.
+
+- Path parameter: `title_id` (16 hex characters)  
+- Returns cached image from TitleDB banner URL
+- Falls back to placeholder SVG if not found
+- Cache-Control: `public, max-age=604800, immutable`
+
+Placeholder SVGs are returned instead of 404 errors for better client compatibility.
+
+## Save Synchronization Endpoints
+
+### `GET /api/saves/list`
+
+Returns a list of available save data versions for backup management.
+
+Response format (empty):
+
+```json
+{
+  "saves": []
+}
+```
+
+When save data is available, the response includes metadata for each save:
+
+```json
+{
+  "saves": [
+    {
+      "title_id": "0x0100000000000000",
+      "name": "Game Title",
+      "save_id": "v1_001",
+      "note": "First Save",
+      "created_at": "2025-12-15T10:30:00Z",
+      "created_ts": 1766397000,
+      "download_url": "https://example.com/saves/save1.bin",
+      "size": 52428800
+    }
+  ]
+}
+```
+
+Field specifications:
+- `title_id` (MUST): Nintendo title ID (hex string or decimal)
+- `name` (OPTIONAL): Game title name
+- `save_id` (OPTIONAL): Unique identifier for this save version
+- `note` (OPTIONAL): Human-readable description
+- `created_at` (OPTIONAL): ISO 8601 timestamp
+- `created_ts` (OPTIONAL): Unix timestamp (seconds)
+- `download_url` (OPTIONAL): Download URL for this save
+- `size` (OPTIONAL): File size in bytes
 
 ## Shop Payload Endpoints
 
@@ -141,14 +214,25 @@ Catalog and section payloads are cached in-memory based on `CACHE_TTL`.
 
 ## Compatibility Notes
 
-Implemented:
+### Implemented
 
 - Root response behavior for Tinfoil/CyberFoil-style requests
-- CyberFoil sections endpoint
-- CyberFoil ID-based game downloads
+- CyberFoil sections endpoint with proper limit handling
+- CyberFoil ID-based game downloads with Content-Disposition header
 - HTTP Range support on ID-based downloads
+- Media endpoints (`/api/shop/icon/:title_id`, `/api/shop/banner/:title_id`)
+- TitleDB integration for metadata (names, categories, artwork)
+- Placeholder SVG images for missing media
+- Updates and DLC section population
+- Base/Update/DLC file type detection and grouping
+- `app_type` as numeric values (0=BASE, 1=DLC, 2=UPDATE) per spec
+- Save synchronization inventory endpoint (`/api/saves/list`)
 
-Not currently implemented:
+### Not Implemented
 
-- Media endpoints such as `/api/shop/icon/:title_id` and `/api/shop/banner/:title_id`
-- Rich metadata (TitleDB categories/descriptions/artwork)
+- Shop payload encryption (TINFOIL format with AES + RSA)
+- Download counter tracking (always returns 0)
+- Frozen account endpoint (`/api/frozen/notice`)
+- Media size variants (`?size=web` query parameter)
+- TitleDB version-based `app_version` values (currently uses filename `[vN]` markers)
+- Save upload, download, and delete operations (`/api/saves/upload`, `/api/saves/download`, `/api/saves/delete`)

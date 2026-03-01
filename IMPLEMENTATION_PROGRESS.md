@@ -159,35 +159,65 @@ For production quality, consider implementing:
 
 ## Phase 5: Bug Fixes & CyberFoil Compatibility ✅ COMPLETE
 
+### API Compliance Fixes
+- [x] Fixed `app_type` field to use numeric values (0=BASE, 1=DLC, 2=UPDATE, 3=DEMO)
+  - [x] Updated type definition in `src/types/index.ts`
+  - [x] Updated identification logic in `src/lib/identification.ts`
+  - [x] Updated shop service in `src/services/shop.ts`
+  - [x] Updated all tests to use numeric values
+  - [x] Complies with CyberFoil API specification
+
 ### Updates Section Fix
 - [x] Fixed `app_id` field to use actual title ID instead of sequential number
 - [x] Fixed `title_id` field to point to base game (for proper client-side linking)
 - [x] Updates now properly grouped by base title_id with latest version tracking
-- [x] Verified proper structure: UPDATE has `title_id=base`, `app_id=update_titleid`
+- [x] Verified proper structure: UPDATE has `title_id=base`, `app_id=update_titleid`, `app_type=2`
 
 ### DLC Section Fix
 - [x] Fixed `app_id` field to use DLC's own title ID
 - [x] Fixed `title_id` field to point to base game
 - [x] DLC properly populated and structured for CyberFoil consumption
-- [x] Verified proper structure: DLC has `title_id=base`, `app_id=dlc_titleid`
+- [x] Verified proper structure: DLC has `title_id=base`, `app_id=dlc_titleid`, `app_type=1`
 
 ### Testing
 - [x] Added comprehensive integration tests (`tests/integration/shop-sections.test.ts`)
 - [x] Tests verify Updates section structure and content
 - [x] Tests verify DLC section structure and content
 - [x] Tests verify updates have Y800 suffix pattern
+- [x] Tests verify numeric `app_type` values (0, 1, 2)
 - [x] All 8 new tests passing (100%)
 - [x] No regressions in existing tests
 
 ### Known Working Examples
-- Base game: `title_id=0100B2C00682E000`, `app_id=0100B2C00682E000`, `app_type=BASE`
-- Update: `title_id=0100B2C00682E000`, `app_id=0100B2C00682E800`, `app_type=UPDATE`
-- DLC: `title_id=0100AEA0250EA000`, `app_id=0100AEA0250EB001`, `app_type=DLC`
+- Base game: `title_id=0100B2C00682E000`, `app_id=0100B2C00682E000`, `app_type=0`
+- Update: `title_id=0100B2C00682E000`, `app_id=0100B2C00682E800`, `app_type=2`
+- DLC: `title_id=0100AEA0250EA000`, `app_id=0100AEA0250EB001`, `app_type=1`
 
-### Remaining Tasks (Phase 6)
+---
+
+## Phase 6: Save Synchronization (MVP) ✅ COMPLETE
+
+### Tasks
+- [x] Implement `/api/saves/list` endpoint
+  - [x] Returns `{ "saves": [] }` when no saves available
+  - [x] Accepts CyberFoil standard headers (Theme, UID, Version, Language, HAUTH, UAUTH)
+  - [x] Supports GET and HEAD methods
+  - [x] Ready for future enhancement with actual save data
+
+### Completed Files
+- `src/routes/handlers/saves.ts` - Save list endpoint handler
+- `src/routes/index.ts` - Save route registration
+
+### Updated Documentation
+- [x] Updated CYBERFOIL.md with `/api/saves/list` endpoint documentation
+
+### Remaining Tasks (Phase 7 and beyond)
+- [ ] Implement `/api/saves/upload` endpoint
+- [ ] Implement `/api/saves/download` endpoint
+- [ ] Implement `/api/saves/delete` endpoint
 - [ ] Add comprehensive unit tests for TitleDB service
 - [ ] Add tests for media endpoints
-- [ ] Update CYBERFOIL.md with metadata capabilities
+- [ ] Add tests for save endpoints
 - [ ] Performance testing with large libraries
 - [ ] Handle edge cases (corrupted files, missing TitleDB entries)
 - [ ] Test with actual CyberFoil client (now should display updates/DLC properly)

@@ -71,9 +71,9 @@ function isDLCFile(filename: string): boolean {
  * Example:  0 1 0 0 A E A 0 2 5 0 E B 0 0 1  (DLC - OXXX, O=odd)
  * 
  * Rules (checking character at position 12 and last 3 chars):
- * - Base Game: Ends in Y000, where Y is EVEN (0,2,4,6,8,A,C,E)
- * - Update: Ends in Y800, where Y is EVEN (same as base)
- * - DLC: Ends in OXXX, where O is ODD (1,3,5,7,9,B,D,F), XXX is DLC index
+ * - Base Game: Ends in Y000, where Y is EVEN (0,2,4,6,8,A,C,E) → AppType = 0
+ * - Update: Ends in Y800, where Y is EVEN (same as base) → AppType = 2
+ * - DLC: Ends in OXXX, where O is ODD (1,3,5,7,9,B,D,F), XXX is DLC index → AppType = 1
  * 
  * Examples:
  * - Base:   0100ED100B160000 (0000 - 0 is even, ends 000)
@@ -83,7 +83,7 @@ function isDLCFile(filename: string): boolean {
  * - DLC:    0100AEA0250EB001 (B001 - B is odd)
  */
 function getAppTypeFromTitleId(titleId: string): AppType {
-  if (titleId.length !== 16) return "BASE";
+  if (titleId.length !== 16) return 0; // BASE
   
   // Get character at position 12 and last 3 characters
   const char12 = titleId.charAt(12).toUpperCase();
@@ -95,15 +95,15 @@ function getAppTypeFromTitleId(titleId: string): AppType {
   
   if (isEven) {
     // Even digit at position 12
-    if (last3 === "000") return "BASE";
-    if (last3 === "800") return "UPDATE";
+    if (last3 === "000") return 0; // BASE
+    if (last3 === "800") return 2; // UPDATE
   } else {
     // Odd digit at position 12 = always DLC
-    return "DLC";
+    return 1; // DLC
   }
   
   // Fallback for unexpected patterns
-  return "BASE";
+  return 0; // BASE
 }
 
 /**
@@ -116,7 +116,7 @@ function getAppTypeFromTitleId(titleId: string): AppType {
  *   - Examples: B→A, D→C, F→E, 1→0, 3→2, etc.
  */
 function getBaseTitleId(titleId: string, appType: AppType): string | undefined {
-  if (appType === "BASE") return undefined;
+  if (appType === 0) return undefined; // BASE
   
   if (titleId.length !== 16) return undefined;
   
@@ -124,7 +124,7 @@ function getBaseTitleId(titleId: string, appType: AppType): string | undefined {
   const char12 = titleId.charAt(12).toUpperCase();
   
   // For updates: Y800 -> Y000 (Y stays the same, just change last 3)
-  if (appType === "UPDATE") {
+  if (appType === 2) { // UPDATE
     return `${first12}${char12}000`;
   }
   
@@ -152,16 +152,16 @@ export function identifyFile(filename: string): FileIdentification {
   const isUpdate = isUpdateFile(filename);
   const isDLC = isDLCFile(filename);
   
-  // Determine app type
-  let appType: AppType = "BASE";
+  // Determine app type (0=BASE, 1=DLC, 2=UPDATE)
+  let appType: AppType = 0; // BASE
   
   if (titleId) {
     // Use title ID to determine type
     appType = getAppTypeFromTitleId(titleId);
   } else {
     // Fall back to filename keywords
-    if (isUpdate) appType = "UPDATE";
-    else if (isDLC) appType = "DLC";
+    if (isUpdate) appType = 2; // UPDATE
+    else if (isDLC) appType = 1; // DLC
   }
   
   // Get base title ID if this is an update or DLC
@@ -171,8 +171,8 @@ export function identifyFile(filename: string): FileIdentification {
     titleId,
     appType,
     version,
-    isDLC: appType === "DLC",
-    isUpdate: appType === "UPDATE",
+    isDLC: appType === 1, // DLC
+    isUpdate: appType === 2, // UPDATE
     baseTitleId,
   };
 }
