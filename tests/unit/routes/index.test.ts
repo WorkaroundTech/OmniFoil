@@ -56,7 +56,7 @@ describe("routes/index", () => {
     expect(response.status).toBe(200);
   });
 
-  it("should return direct shop payload for Tinfoil/CyberFoil-style headers", async () => {
+  it("should return index listing for Tinfoil/CyberFoil-style headers", async () => {
     const req = new Request("http://localhost/", {
       headers: {
         Theme: "dark",
@@ -73,9 +73,57 @@ describe("routes/index", () => {
     expect(response.status).toBe(200);
 
     const data = await response.json() as any;
+    expect(response.headers.get("content-type")).toContain("application/json");
+    expect(data.files).toBeDefined();
+    expect(data.directories).toBeDefined();
     expect(Array.isArray(data.files)).toBe(true);
-    if (data.files.length > 0) {
-      expect(String(data.files[0].url)).toContain("/api/get_game/");
-    }
+
+    const fileUrls = data.files.map((f: any) => f.url);
+    expect(fileUrls).toContain("shop.json");
+    expect(fileUrls).toContain("shop.tfl");
+  });
+
+  describe("success message handling", () => {
+    it("Tinfoil client should omit success key when unset", async () => {
+      const req = new Request("http://localhost/", {
+        headers: {
+          Theme: "dark",
+          Uid: "1000",
+          Version: "1",
+          Revision: "1",
+          Language: "en",
+          Hauth: "x",
+          Uauth: "y",
+        },
+      });
+
+      const response = await indexHandler(req, ctx);
+      const data = await response.json() as any;
+
+      // Tinfoil clients should NOT have success key if unset (to avoid empty banners)
+      expect(data.success).toBeUndefined();
+    });
+
+    it("CyberFoil client should include success key even when unset", async () => {
+      const req = new Request("http://localhost/", {
+        headers: {
+          Theme: "dark",
+          Uid: "1000",
+          Version: "1",
+          Revision: "1",
+          Language: "en",
+          Hauth: "x",
+          Uauth: "y",
+          "User-Agent": "CyberFoil/1.0",
+        },
+      });
+
+      const response = await indexHandler(req, ctx);
+      const data = await response.json() as any;
+
+      // CyberFoil clients should always have success key (even if empty string)
+      expect(data.success).toBeDefined();
+      expect(typeof data.success).toBe("string");
+    });
   });
 });

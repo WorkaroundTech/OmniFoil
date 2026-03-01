@@ -5,7 +5,6 @@
 
 import { type RequestContext, type Handler, ServiceError } from "../../types";
 import { buildIndexPayload } from "../utils";
-import { buildShopData } from "../../services/shop";
 import { methodValidator } from "../../middleware";
 import { LOG_FORMAT } from "../../config";
 
@@ -66,9 +65,10 @@ const indexHandlerImpl: Handler = async (req: Request, ctx: RequestContext) => {
   debugLogHeaders(req, ctx);
 
   if (isTinfoilLikeRequest(req)) {
-    console.log(`[${clientType}] Serving shop payload to ${ctx.remoteAddress || "unknown"}`);
-    const shopData = await buildShopData();
-    return Response.json(shopData);
+    const isCyberFoil = isCyberFoilRequest(req);
+    console.log(`[${clientType}] Serving index listing to ${ctx.remoteAddress || "unknown"}`);
+    const indexPayload = buildIndexPayload(isCyberFoil);
+    return Response.json(indexPayload);
   }
 
   if (isBrowser) {
