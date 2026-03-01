@@ -1,7 +1,7 @@
-# tinfoil-bolt
-![tinfoil-bolt logo](bolt-logo-transparent-bg.png)
+# OmniFoil
+![OmniFoil logo](bolt-logo-transparent-bg.png)
 
-**tinfoil-bolt** is a lightning-fast, zero-dependency, and lightweight backend server to serve your personal game backup library to Tinfoil on Nintendo Switch.
+**OmniFoil** is a lightning-fast, zero-dependency, and lightweight backend server to serve your personal game backup library to Tinfoil and CyberFoil clients on Nintendo Switch.
 
 Built with [Bun](https://bun.sh), it replaces bloated, unmaintainable alternatives with a clean, modular TypeScript codebase that does exactly what you need and nothing else.
 
@@ -9,9 +9,10 @@ Built with [Bun](https://bun.sh), it replaces bloated, unmaintainable alternativ
 
 Many existing Tinfoil server solutions suffer from feature creep: auto-updaters that pose security risks, heavy polling mechanisms, required databases, or complex UIs.
 
-**tinfoil-bolt is different:**
+**OmniFoil is different:**
 
 * **Zero Dependencies:** No `node_modules` black hole. Uses Bun's native HTTP and FileSystem APIs.
+* **CyberFoil Compatible:** Full support for CyberFoil clients with modern API endpoints, rich metadata, game artwork, and proper update/DLC grouping.
 * **Stateless:** No database to sync. It scans your folders when Tinfoil asks.
 * **Multi-Mount Support:** Seamlessly serve games scattered across multiple drives/mounts (e.g., `/mnt/nas` and `/mnt/usb`) as a single unified library.
 * **Secure:** Designed to run with **Read-Only** access to your files. No risk of deletion or corruption.
@@ -21,7 +22,7 @@ Many existing Tinfoil server solutions suffer from feature creep: auto-updaters 
 
 ### Option 1: Docker Compose (Recommended)
 
-This is the easiest way to run `tinfoil-bolt` on your NAS, Home Server, or Proxmox LXC container.
+This is the easiest way to run `OmniFoil` on your NAS, Home Server, or Proxmox LXC container.
 
 1. Clone or download this entire repository.
 2. Copy `.env.example` to `.env` and update with your game directories and optional auth settings.
@@ -66,8 +67,40 @@ Copy `.env.example` to `.env` and configure the following variables:
 | `PORT` | The port the server listens on. | `3000` |
 | `GAMES_DIRS` | Comma or semicolon-separated list of **absolute paths** where your NSP/NSZ/XCI files are stored. | `/data/games` |
 | `CACHE_TTL` | Cache duration (in seconds) for shop data. Reduces expensive directory scans on network mounts. Set to `0` to disable caching. | `300` |
-| `SUCCESS_MESSAGE` | Optional message displayed in Tinfoil when the shop is loaded. Great for MOTD or custom greetings. | (empty) |
+| `SUCCESS_MESSAGE` | Optional message displayed in Tinfoil/CyberFoil when the shop is loaded. Great for MOTD or custom greetings. | (empty) |
+| `REFERRER` | Optional host URL for client-side host verification. Only included in responses when configured. | (empty) |
 | `LOG_FORMAT` | Morgan-style log format: `tiny`, `short`, `dev`, `common`, or `combined`. | `dev` |
+
+### TitleDB & Metadata Enrichment
+
+**OmniFoil** now supports TitleDB integration to provide rich game metadata for CyberFoil clients. This enables:
+
+- **Real game titles** (instead of filename-based names)
+- **Game cover artwork** (icons and banners)
+- **Category tags** (genres)
+- **Version information**
+- **Update/DLC detection and grouping**
+
+| Variable | Description | Default |
+| --- | --- | --- |
+| `TITLEDB_ENABLED` | Enable TitleDB integration for metadata enrichment | `true` |
+| `TITLEDB_REGION` | Region for TitleDB data (US, EU, JP, etc.) | `US` |
+| `TITLEDB_LANGUAGE` | Language code (en, es, fr, de, ja, etc.) | `en` |
+| `TITLEDB_CACHE_DIR` | Directory to store downloaded TitleDB files | `./data/titledb` |
+| `TITLEDB_AUTO_UPDATE` | Auto-download TitleDB data on server start | `true` |
+| `MEDIA_CACHE_DIR` | Directory to store cached game artwork | `./data/media` |
+| `MEDIA_CACHE_TTL` | Media cache TTL in seconds | `604800` (7 days) |
+
+**How it works:**
+
+1. On startup, OmniFoil downloads TitleDB datasets (titles, versions) based on your region/language
+2. When scanning your library, it attempts to extract title IDs from filenames
+3. If a title ID is found, it enriches the game entry with TitleDB metadata
+4. Game icons and banners are served via `/api/shop/icon/:title_id` and `/api/shop/banner/:title_id`
+5. CyberFoil clients automatically display rich metadata with cover art
+
+**Note:** TitleDB data is cached locally. The first startup may take a few moments to download the database. Subsequent startups use the cached data unless `TITLEDB_AUTO_UPDATE=true`.
+
 
 ### Authentication (Optional)
 
@@ -95,7 +128,7 @@ Docker Compose:
 
 ```yaml
 services:
-  tinfoil-bolt:
+  OmniFoil:
     env_file: .env
     environment:
       - PORT=3000
@@ -107,16 +140,18 @@ Note: Keep the server on a trusted LAN. If your client supports Basic Auth, set 
 
 ### How It Works
 
-1. The root endpoint (`/` or `/tinfoil`) returns an index listing `shop.json` and `shop.tfl`
-2. Tinfoil requests `/shop.tfl` which contains the actual game library with relative URLs
-3. Each configured directory is aliased (e.g., `games`, `games-2`) to keep paths unique across multiple mounts
-4. Files are served from `/files/{alias}/{relative-path}`
+1. The root endpoint (`/` or `/tinfoil`) returns an index for browsers and generic clients.
+2. Tinfoil/CyberFoil-style requests (with Tinfoil headers) receive direct shop JSON at `/`.
+3. Legacy shop endpoints remain available at `/shop.json` and `/shop.tfl`.
+4. CyberFoil-compatible endpoints are available at `/api/shop/sections` and `/api/get_game/:id`.
+5. Media endpoints serve game artwork at `/api/shop/icon/:title_id` and `/api/shop/banner/:title_id`.
+6. Files are still available via legacy path-based downloads at `/files/{alias}/{relative-path}`.
 
 ## Advanced Features
 
 ### HTTP Range Request Support
 
-tinfoil-bolt supports HTTP 206 Partial Content responses, enabling resumable downloads for large files. This is especially useful for:
+OmniFoil supports HTTP 206 Partial Content responses, enabling resumable downloads for large files. This is especially useful for:
 
 * **Interrupted downloads:** Resume a failed transfer without re-downloading the entire file
 * **Bandwidth efficiency:** Download only the portion of a file you need
@@ -167,6 +202,18 @@ curl -H "Range: bytes=-536870912" http://localhost:3000/files/games/game.nsp -o 
 Tinfoil will fetch the index, then request `/shop.tfl` to load your library. Your "New Games" tab will populate automatically.
 
 **Note:** If you have enabled Basic Auth on the server, Tinfoil's File Browser will prompt for credentials when connecting. Leave username/password blank if auth is disabled.
+
+## CyberFoil Setup
+
+In CyberFoil, set your eShop URL to:
+
+- `http://<server-ip>:3000`
+
+CyberFoil can use:
+
+- `GET /` (direct shop payload for Tinfoil/CyberFoil header-based requests)
+- `GET /api/shop/sections`
+- `GET /api/get_game/:id`
 
 ## Supported Formats
 

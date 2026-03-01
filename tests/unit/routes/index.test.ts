@@ -55,4 +55,27 @@ describe("routes/index", () => {
     const response = await indexHandler(req, ctx);
     expect(response.status).toBe(200);
   });
+
+  it("should return direct shop payload for Tinfoil/CyberFoil-style headers", async () => {
+    const req = new Request("http://localhost/", {
+      headers: {
+        Theme: "dark",
+        Uid: "1000",
+        Version: "1",
+        Revision: "1",
+        Language: "en",
+        Hauth: "x",
+        Uauth: "y",
+      },
+    });
+
+    const response = await indexHandler(req, ctx);
+    expect(response.status).toBe(200);
+
+    const data = await response.json() as any;
+    expect(Array.isArray(data.files)).toBe(true);
+    if (data.files.length > 0) {
+      expect(String(data.files[0].url)).toContain("/api/get_game/");
+    }
+  });
 });

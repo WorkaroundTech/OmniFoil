@@ -44,5 +44,22 @@ export const CACHE_TTL = parseInt(process.env.CACHE_TTL || "300");
 // Success message configuration: Optional message to display in Tinfoil (MOTD)
 export const SUCCESS_MESSAGE = process.env.SUCCESS_MESSAGE || "";
 
+// Referrer configuration: Optional host verification for strict shop security
+export const REFERRER = process.env.REFERRER || "";
+
 // Logging configuration: Morgan-style log format (tiny, short, dev, common, combined)
 export const LOG_FORMAT = (process.env.LOG_FORMAT || "dev") as "tiny" | "short" | "dev" | "common" | "combined";
+
+// TitleDB configuration
+export const TITLEDB_ENABLED = process.env.TITLEDB_ENABLED !== "false"; // Default enabled
+export const TITLEDB_REGION = process.env.TITLEDB_REGION || "US";
+export const TITLEDB_LANGUAGE = process.env.TITLEDB_LANGUAGE || "en";
+export const TITLEDB_CACHE_DIR = process.env.TITLEDB_CACHE_DIR || "./data/titledb";
+export const TITLEDB_AUTO_UPDATE = process.env.TITLEDB_AUTO_UPDATE !== "false"; // Default enabled
+export const TITLEDB_CACHE_TTL = parseInt(process.env.TITLEDB_CACHE_TTL || "86400"); // 24 hours in seconds
+export const TITLEDB_BASE_URL = "https://tinfoil.media/repo/db";
+
+// Media cache configuration
+export const MEDIA_CACHE_DIR = process.env.MEDIA_CACHE_DIR || "./data/media";
+export const MEDIA_CACHE_TTL = parseInt(process.env.MEDIA_CACHE_TTL || "604800"); // 7 days in seconds
+

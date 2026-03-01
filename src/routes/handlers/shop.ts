@@ -4,23 +4,14 @@
  */
 
 import { type RequestContext, type Handler, ServiceError } from "../../types";
-import { ShopDataCache } from "../../lib/cache";
 import { buildShopData } from "../../services/shop";
-import { CACHE_TTL } from "../../config";
 import { methodValidator } from "../../middleware";
-
-const shopDataCache = new ShopDataCache(CACHE_TTL);
 
 const shopHandlerImpl: Handler = async (req: Request, ctx: RequestContext) => {
   const url = new URL(req.url);
   
   try {
-    // Check cache first
-    let shopData = shopDataCache.get();
-    if (!shopData) {
-      shopData = await buildShopData();
-      shopDataCache.set(shopData);
-    }
+    const shopData = await buildShopData();
 
     const contentType = url.pathname.endsWith(".tfl")
       ? "application/octet-stream"

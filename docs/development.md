@@ -1,6 +1,6 @@
 # Development Guide
 
-This guide covers local development setup, testing, code organization, and contribution guidelines for tinfoil-bolt.
+This guide covers local development setup, testing, code organization, and contribution guidelines for OmniFoil.
 
 ## Table of Contents
 
@@ -48,14 +48,14 @@ bun run --version
 ### 1. Clone Repository
 
 ```bash
-git clone https://github.com/WorkaroundTech/tinfoil-bolt.git
-cd tinfoil-bolt
+git clone https://github.com/WorkaroundTech/OmniFoil.git
+cd OmniFoil
 ```
 
 ### 2. Install Dependencies
 
 ```bash
-# tinfoil-bolt has zero runtime dependencies!
+# OmniFoil has zero runtime dependencies!
 # This only installs dev dependencies (TypeScript, testing tools)
 bun install
 ```
@@ -76,6 +76,13 @@ touch "Mario Kart 8.xci"
 cd ..
 ```
 
+**Optional:** Set up TitleDB test data directory:
+```bash
+mkdir -p data/titledb
+mkdir -p data/media/icons
+mkdir -p data/media/banners
+```
+
 ### 4. Configure Environment
 
 Create a `.env.local` file (not committed to git):
@@ -87,6 +94,17 @@ GAMES_DIRECTORY=./test-games
 CACHE_TTL=0
 LOG_FORMAT=dev
 # Leave auth empty for local testing
+
+# TitleDB (optional for development)
+TITLEDB_ENABLED=true
+TITLEDB_REGION=US
+TITLEDB_LANGUAGE=en
+TITLEDB_CACHE_DIR=./data/titledb
+TITLEDB_AUTO_UPDATE=true
+
+# Media cache (optional for development)
+MEDIA_CACHE_DIR=./data/media
+MEDIA_CACHE_TTL=604800
 ```
 
 ### 5. Run Development Server
@@ -123,7 +141,7 @@ Expected response:
 ## Project Structure
 
 ```
-tinfoil-bolt/
+OmniFoil/
 ├── src/                      # Source code
 │   ├── main.ts              # Entry point (starts server)
 │   ├── app.ts               # App composition (middleware chain)
@@ -133,7 +151,9 @@ tinfoil-bolt/
 │   ├── lib/                 # Utility libraries
 │   │   ├── auth.ts          # Authentication helpers
 │   │   ├── cache.ts         # In-memory caching
+│   │   ├── identification.ts # File title ID extraction
 │   │   ├── logger.ts        # Logging formats
+│   │   ├── media-cache.ts   # Media file caching
 │   │   ├── paths.ts         # Path resolution & encoding
 │   │   └── range.ts         # HTTP Range parsing
 │   ├── middleware/          # Middleware functions
@@ -148,11 +168,15 @@ tinfoil-bolt/
 │   │   ├── index.ts         # Router implementation
 │   │   ├── utils.ts         # Route utilities
 │   │   └── handlers/        # Request handlers
-│   │       ├── index.ts     # Index/shop handlers
+│   │       ├── cyberfoil.ts # CyberFoil API handlers
 │   │       ├── files.ts     # File download handler
+│   │       ├── index.ts     # Index/shop handlers
+│   │       ├── media.ts     # Media (icon/banner) handlers
+│   │       ├── saves.ts     # Save synchronization handlers
 │   │       └── shop.ts      # Shop data generation
 │   ├── services/            # Business logic
-│   │   └── shop.ts          # Shop data service
+│   │   ├── shop.ts          # Shop data service
+│   │   └── titledb.ts       # TitleDB integration
 │   └── types/               # TypeScript types
 │       └── index.ts         # Type definitions
 ├── tests/                   # Test suite
@@ -164,11 +188,17 @@ tinfoil-bolt/
 │   │   ├── paths.test.ts
 │   │   ├── range.test.ts
 │   │   ├── lib/
+│   │   │   ├── identification.test.ts
 │   │   │   └── shop.test.ts
 │   │   └── routes/
+│   │       ├── cyberfoil.test.ts
 │   │       ├── files.test.ts
 │   │       ├── index.test.ts
+│   │       ├── media.test.ts
+│   │       ├── saves.test.ts
 │   │       └── shop.test.ts
+│   │   └── services/
+│   │       └── titledb.test.ts
 │   ├── integration/         # Integration tests
 │   │   ├── method-validation.test.ts
 │   │   ├── range-integration.test.ts
@@ -195,10 +225,12 @@ tinfoil-bolt/
 **`src/`** - All application source code
 - Organized by functional area (lib, middleware, routes, services)
 - Each module has a single, clear responsibility
+- New modules: `identification.ts` (file metadata extraction), `media-cache.ts` (artwork caching), `titledb.ts` (metadata service)
 
 **`tests/`** - Test suite
 - **Unit tests:** Test individual functions/modules in isolation
 - **Integration tests:** Test full request/response cycle
+- Coverage for new CyberFoil features (sections, media, TitleDB)
 
 **`docs/`** - Comprehensive documentation
 

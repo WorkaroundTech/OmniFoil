@@ -7,14 +7,15 @@ import { PORT, BASES, getAuthPair, CACHE_TTL, SUCCESS_MESSAGE, LOG_FORMAT } from
 import { type RequestContext } from "./types";
 import { authorize, timing, logging, errorHandler, compose } from "./middleware";
 import { router } from "./routes";
+import { initializeTitleDB } from "./services/titledb";
 
 const asciiHeader = `
 ╔════════════════════════════════════════╗
-║     ⚡ tinfoil-bolt server running!    ║
+║     ⚡ OmniFoil server running!    ║
 ╚════════════════════════════════════════╝
 `;
 
-export function setupServer() {
+export async function setupServer() {
   console.log(asciiHeader);
   console.log(`> Scanning directories:`, BASES.map((b) => `${b.alias} -> ${b.path}`));
 
@@ -32,6 +33,16 @@ export function setupServer() {
   }
 
   console.log(`> Log format: ${LOG_FORMAT}`);
+
+  // Initialize TitleDB in the background so startup is not blocked
+  console.log(`\n> Initializing TitleDB...`);
+  initializeTitleDB()
+    .then(() => {
+      console.log(`> TitleDB initialization complete.`);
+    })
+    .catch((err) => {
+      console.error(`> Failed to initialize TitleDB:`, err);
+    });
 
   /**
    * Setup middleware chain with error handler
@@ -72,7 +83,9 @@ export function setupServer() {
 export function printEndpoints() {
   console.log(`\n>> Server is up and listening on port: ${PORT}`);
   console.log(`>> Endpoints:`);
-  console.log(`   GET /          - Index listing`);
-  console.log(`   GET /shop.tfl  - Game library (Tinfoil format)`);
-  console.log(`   GET /files/*   - File downloads`);
+  console.log(`   GET /                  - Index or shop payload (Tinfoil/CyberFoil headers)`);
+  console.log(`   GET /shop.tfl          - Game library (legacy Tinfoil format)`);
+  console.log(`   GET /api/shop/sections - CyberFoil sections payload`);
+  console.log(`   GET /api/get_game/:id  - CyberFoil-compatible file downloads`);
+  console.log(`   GET /files/*           - File downloads (legacy path-based)`);
 }

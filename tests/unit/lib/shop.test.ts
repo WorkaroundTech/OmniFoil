@@ -7,9 +7,9 @@ describe("lib/shop", () => {
       const shopData = await buildShopData();
 
       expect(shopData).toHaveProperty("files");
-      expect(shopData).toHaveProperty("directories");
+      expect(shopData).toHaveProperty("success");
       expect(Array.isArray(shopData.files)).toBe(true);
-      expect(Array.isArray(shopData.directories)).toBe(true);
+      expect(typeof shopData.success).toBe("string");
     });
 
     it("should have file objects with url and size properties", async () => {
@@ -29,17 +29,8 @@ describe("lib/shop", () => {
 
       if (shopData.files.length > 0) {
         const file = shopData.files[0];
-        // URLs should be encoded and start with ../files/
-        expect(file?.url).toContain("../files/");
-      }
-    });
-
-    it("should include directory paths", async () => {
-      const shopData = await buildShopData();
-
-      if (shopData.directories.length > 0) {
-        const dir = shopData.directories[0];
-        expect(dir).toContain("../files/");
+        // URLs should use CyberFoil-compatible id-based downloads
+        expect(file?.url).toContain("/api/get_game/");
       }
     });
 

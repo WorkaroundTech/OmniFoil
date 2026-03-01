@@ -1,5 +1,5 @@
 /**
- * tinfoil-bolt ⚡
+ * OmniFoil ⚡
  * A lightning-fast, zero-dependency Tinfoil server for Switch.
  *
  * Entry point for the application
@@ -7,5 +7,5 @@
 
 import { setupServer, printEndpoints } from "./app";
 
-setupServer();
+await setupServer();
 printEndpoints();

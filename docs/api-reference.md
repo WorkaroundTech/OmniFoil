@@ -1,6 +1,6 @@
 # API Reference
 
-This document provides a complete reference for all HTTP endpoints exposed by tinfoil-bolt.
+This document provides a complete reference for all HTTP endpoints exposed by OmniFoil.
 
 ## Table of Contents
 
@@ -12,6 +12,12 @@ This document provides a complete reference for all HTTP endpoints exposed by ti
   - [GET /shop.json](#get-shopjson)
   - [GET /shop.tfl](#get-shoptfl)
   - [GET /files/:path](#get-filespath)
+  - [CyberFoil Endpoints](#cyberfoil-endpoints)
+    - [GET /api/shop/sections](#get-apishopsections)
+    - [GET /api/get_game/:id](#get-apiget_gameid)
+    - [GET /api/shop/icon/:title_id](#get-apishopicontitle_id)
+    - [GET /api/shop/banner/:title_id](#get-apishopbannertitle_id)
+    - [GET /api/saves/list](#get-apisaveslist)
   - [Default Endpoint](#default-endpoint)
 - [HTTP Status Codes](#http-status-codes)
 - [Error Responses](#error-responses)
@@ -29,7 +35,7 @@ Authorization: Basic <base64(username:password)>
 
 **Response on Missing/Invalid Credentials:**
 - Status: `401 Unauthorized`
-- Header: `WWW-Authenticate: Basic realm="tinfoil-bolt"`
+  - Header: `WWW-Authenticate: Basic realm="OmniFoil"`
 - Body: `{"error": "Unauthorized"}`
 
 ---
@@ -84,10 +90,10 @@ curl -H "Accept: text/html" http://localhost:3000/
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>tinfoil-bolt</title>
+    <title>OmniFoil</title>
   </head>
   <body>
-    <h1>tinfoil-bolt</h1>
+    <h1>OmniFoil</h1>
     <ul>
       <li><a href="/shop.json">shop.json</a></li>
       <li><a href="/shop.tfl">shop.tfl</a></li>
@@ -110,6 +116,55 @@ curl -H "Accept: application/json" http://localhost:3000/
 - Content-Type: `application/json`
 - Body: Shop data (see [Shop JSON Format](#shop-json-format))
 
+#### Tinfoil/CyberFoil Request
+
+When all required Tinfoil/CyberFoil headers are present, returns CyberFoil-compatible shop payload:
+
+**Request Headers:**
+```
+Theme: Dark
+Uid: <device-id>
+Version: 1.4
+Revision: 1
+Language: en
+Hauth: <hardware-auth-token>
+Uauth: <user-auth-token>
+```
+
+**Response:**
+- Status: `200 OK`
+- Content-Type: `application/json`
+- Body: CyberFoil shop payload
+
+**CyberFoil Shop Format:**
+```json
+{
+  "success": "Welcome to OmniFoil!",
+  "referrer": "https://shop.example.com",
+  "files": [
+    {
+      "url": "/api/get_game/1#game.nsp",
+      "size": 1234567890
+    },
+    {
+      "url": "/api/get_game/2#update.nsp",
+      "size": 987654321
+    }
+  ]
+}
+```
+
+**Fields:**
+- `success` (string): MOTD message from `SUCCESS_MESSAGE` env variable (always present, may be empty)
+- `referrer` (string, optional): Host verification URL from `REFERRER` env variable (only if configured)
+- `files` (array): List of available game files with CyberFoil-compatible download URLs
+  - `url` (string): Download URL using `/api/get_game/:id` format
+  - `size` (number): File size in bytes
+
+**Notes:**
+- This is the format expected by CyberFoil clients running on Nintendo Switch
+- For CyberFoil CLI tools, see [CYBERFOIL.md](../CYBERFOIL.md) for detailed endpoint documentation
+
 ---
 
 ### GET /tinfoil
@@ -127,7 +182,7 @@ curl http://localhost:3000/tinfoil
 
 ### GET /shop.json
 
-**Description:** Returns shop data in JSON format for Tinfoil clients.
+**Description:** Returns shop data in JSON format (legacy Tinfoil format). **Note:** CyberFoil clients should use `GET /` with Tinfoil headers instead for faster, more efficient CyberFoil-specific responses.
 
 **Request:**
 ```bash
@@ -158,7 +213,7 @@ curl http://localhost:3000/shop.json
     "dlc",
     "updates"
   ],
-  "success": "Welcome to tinfoil-bolt!"
+  "success": "Welcome to OmniFoil!"
 }
 ```
 
@@ -266,6 +321,277 @@ The server validates that requested paths:
 
 ---
 
+## CyberFoil Endpoints
+
+The following endpoints provide CyberFoil-compatible API for Nintendo Switch homebrew clients. These endpoints support enhanced game metadata via TitleDB integration.
+
+### GET /api/shop/sections
+
+**Description:** Returns a CyberFoil-compatible sections payload with game metadata organized into sections: new, recommended, updates, DLC, and all games.
+
+**Query Parameters:**
+- `limit` (optional, number, default: `50`, minimum: `1`) - Maximum items per section for "new" and "recommended" sections
+
+**Request:**
+```bash
+curl http://localhost:3000/api/shop/sections
+
+# With custom limit
+curl http://localhost:3000/api/shop/sections?limit=100
+```
+
+**Response:**
+- Status: `200 OK`
+- Content-Type: `application/json`
+
+**Response Format:**
+```json
+{
+  "sections": [
+    {
+      "id": "new",
+      "title": "New",
+      "items": [...]
+    },
+    {
+      "id": "recommended",
+      "title": "Recommended",
+      "items": [...]
+    },
+    {
+      "id": "updates",
+      "title": "Updates",
+      "items": [...]
+    },
+    {
+      "id": "dlc",
+      "title": "DLC",
+      "items": [...]
+    },
+    {
+      "id": "all",
+      "title": "All",
+      "items": [...],
+      "total": 150,
+      "truncated": false
+    }
+  ]
+}
+```
+
+**Section Item Format:**
+```json
+{
+  "name": "Super Mario Odyssey",
+  "title_name": "Super Mario Odyssey",
+  "title_id": "0100000000010000",
+  "app_id": "0100000000010000",
+  "app_version": 0,
+  "app_type": 0,
+  "category": "Adventure, Platformer",
+  "icon_url": "/api/shop/icon/0100000000010000",
+  "url": "/api/get_game/1#Super Mario Odyssey.nsp",
+  "size": 5678901234,
+  "file_id": 1,
+  "filename": "Super Mario Odyssey.nsp",
+  "download_count": 0
+}
+```
+
+**Field Descriptions:**
+- `name` (string) - Game title from TitleDB or filename
+- `title_name` (string) - Same as name
+- `title_id` (string|null) - Base game's title ID (for grouping updates/DLC)
+- `app_id` (string) - File's own title ID
+- `app_version` (number) - Version number (0 for base, parsed from filename markers like `[v1]`)
+- `app_type` (number) - File type: `0`=BASE, `1`=DLC, `2`=UPDATE
+- `category` (string) - Comma-separated categories from TitleDB
+- `icon_url` (string) - Path to game icon
+- `url` (string) - Download URL in format `/api/get_game/:id#filename`
+- `size` (number) - File size in bytes
+- `file_id` (number) - Unique file identifier
+- `filename` (string) - Original filename
+- `download_count` (number) - Always 0 (tracking not implemented)
+
+**Section Behavior:**
+- **new**: Most recently added files (limited by `limit` param)
+- **recommended**: Same as new (limited by `limit` param)
+- **updates**: Only UPDATE files (app_type=2), grouped by base title
+- **dlc**: Only DLC files (app_type=1), grouped by base title
+- **all**: All files without limit
+
+**Caching:** Response is cached based on `CACHE_TTL` configuration.
+
+---
+
+### GET /api/get_game/:id
+
+**Description:** Downloads a game file by its catalog ID. Supports full downloads and single-range partial downloads.
+
+**Path Parameters:**
+- `id` (number, required) - File ID from catalog
+
+**Request:**
+```bash
+# Full download
+curl http://localhost:3000/api/get_game/1 -o game.nsp
+
+# Range request (partial download)
+curl -H "Range: bytes=0-1048575" http://localhost:3000/api/get_game/1
+```
+
+**Response (Full Download):**
+- Status: `200 OK`
+- Content-Type: `application/octet-stream`
+- Accept-Ranges: `bytes`
+- Content-Disposition: `attachment; filename="Game Name.nsp"`
+- Body: Complete file content
+
+**Response (Range Request):**
+- Status: `206 Partial Content`
+- Content-Type: `application/octet-stream`
+- Accept-Ranges: `bytes`
+- Content-Range: `bytes 0-1048575/5678901234`
+- Content-Disposition: `attachment; filename="Game Name.nsp"`
+- Body: Requested byte range
+
+**Range Request Support:**
+Same as [GET /files/:path](#get-filespath) - supports single-range requests only.
+
+**Error Responses:**
+- `404 Not Found` - File ID not found
+- `416 Range Not Satisfiable` - Invalid range requested
+
+**Notes:**
+- File IDs are assigned sequentially based on catalog order
+- IDs may change when files are added/removed (cache invalidation)
+- Fragment identifier (`#filename`) in URL is ignored by server but used by clients
+
+---
+
+### GET /api/shop/icon/:title_id
+
+**Description:** Serves game icon image for a Nintendo Switch title, proxied from TitleDB or cached locally.
+
+**Path Parameters:**
+- `title_id` (string, required) - 16-character hexadecimal title ID (e.g., `0100000000010000`)
+
+**Request:**
+```bash
+curl http://localhost:3000/api/shop/icon/0100000000010000
+```
+
+**Response (Image Found):**
+- Status: `200 OK`
+- Content-Type: `image/jpeg` or `image/png`
+- Cache-Control: `public, max-age=604800, immutable`
+- Access-Control-Allow-Origin: `*`
+- Body: Icon image (typically 300x300 pixels)
+
+**Response (No Icon Available):**
+- Status: `200 OK`
+- Content-Type: `image/svg+xml`
+- Cache-Control: `public, max-age=3600`
+- Body: Placeholder SVG with "No Icon" text
+
+**Caching:**
+- Downloaded icons are cached locally based on `MEDIA_CACHE_TTL` (default 7 days)
+- Cache directory: `MEDIA_CACHE_DIR` (default `./data/media`)
+- Subsequent requests are served from cache
+
+**Notes:**
+- Returns placeholder instead of 404 for better client compatibility
+- Requires TitleDB integration (`TITLEDB_ENABLED=true`)
+- Icon URLs are fetched from TitleDB metadata
+
+---
+
+### GET /api/shop/banner/:title_id
+
+**Description:** Serves game banner image for a Nintendo Switch title, proxied from TitleDB or cached locally.
+
+**Path Parameters:**
+- `title_id` (string, required) - 16-character hexadecimal title ID
+
+**Request:**
+```bash
+curl http://localhost:3000/api/shop/banner/0100000000010000
+```
+
+**Response (Image Found):**
+- Status: `200 OK`
+- Content-Type: `image/jpeg` or `image/png`
+- Cache-Control: `public, max-age=604800, immutable`
+- Access-Control-Allow-Origin: `*`
+- Body: Banner image (typically 640x360 pixels)
+
+**Response (No Banner Available):**
+- Status: `200 OK`
+- Content-Type: `image/svg+xml`
+- Cache-Control: `public, max-age=3600`
+- Body: Placeholder SVG with "No Banner" text
+
+**Caching:** Same as icon endpoint
+
+**Notes:** Same as icon endpoint
+
+---
+
+### GET /api/saves/list
+
+**Description:** Returns a list of available save data versions for backup management. Currently returns empty list as save management is not yet implemented.
+
+**Request:**
+```bash
+curl http://localhost:3000/api/saves/list
+```
+
+**Response:**
+- Status: `200 OK`
+- Content-Type: `application/json`
+
+**Response Format (Current - Empty):**
+```json
+{
+  "saves": []
+}
+```
+
+**Response Format (When Implemented):**
+```json
+{
+  "saves": [
+    {
+      "title_id": "0x0100000000000000",
+      "name": "Game Title",
+      "save_id": "v1_001",
+      "note": "First Save",
+      "created_at": "2026-03-01T10:30:00Z",
+      "created_ts": 1766397000,
+      "download_url": "https://example.com/saves/save1.bin",
+      "size": 52428800
+    }
+  ]
+}
+```
+
+**Field Descriptions:**
+- `title_id` (string, required) - Nintendo title ID (hex or decimal)
+- `name` (string, optional) - Game title name
+- `save_id` (string, optional) - Unique identifier for this save version
+- `note` (string, optional) - Human-readable description
+- `created_at` (string, optional) - ISO 8601 timestamp
+- `created_ts` (number, optional) - Unix timestamp (seconds)
+- `download_url` (string, optional) - Download URL for this save
+- `size` (number, optional) - File size in bytes
+
+**Notes:**
+- This endpoint is part of CyberFoil save synchronization feature
+- Save upload, download, and delete operations are not yet implemented
+- Future implementation will support save backup and restore
+
+---
+
 ### Default Endpoint
 
 **Description:** Any undefined route returns a simple status message.
@@ -278,7 +604,7 @@ curl http://localhost:3000/any/undefined/path
 **Response:**
 - Status: `200 OK`
 - Content-Type: `application/json`
-- Body: `{"status": "tinfoil-bolt is running"}`
+- Body: `{"status": "OmniFoil is running"}`
 
 **Note:** This serves as a basic health check endpoint.
 
@@ -316,7 +642,7 @@ All errors return JSON with an `error` field:
   "error": "Unauthorized"
 }
 ```
-**Headers:** `WWW-Authenticate: Basic realm="tinfoil-bolt"`
+**Headers:** `WWW-Authenticate: Basic realm="OmniFoil"`
 
 #### 404 Not Found
 ```json
@@ -397,7 +723,7 @@ curl -H "Range: bytes=500000000-" -o game.nsp.part http://localhost:3000/files/g
 # Simple health check
 curl http://localhost:3000/health
 
-# Response: {"status":"tinfoil-bolt is running"}
+# Response: {"status":"OmniFoil is running"}
 ```
 
 ---

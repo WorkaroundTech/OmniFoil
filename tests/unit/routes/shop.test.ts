@@ -18,15 +18,15 @@ describe("routes/shop", () => {
       expect(response.headers.get("content-type")).toContain("application/json");
     });
 
-    it("should return shop data with files and directories", async () => {
+    it("should return shop data with files", async () => {
       const req = new Request("http://localhost/shop.json");
       const response = await shopHandler(req, ctx);
       const data = await response.json() as any;
 
       expect(data).toHaveProperty("files");
-      expect(data).toHaveProperty("directories");
       expect(Array.isArray(data.files)).toBe(true);
-      expect(Array.isArray(data.directories)).toBe(true);
+      expect(data).toHaveProperty("success");
+      expect(typeof data.success).toBe("string");
     });
 
     it("should have file objects with url and size", async () => {
