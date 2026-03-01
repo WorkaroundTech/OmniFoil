@@ -1,5 +1,5 @@
 /**
- * Type definitions for the tinfoil-bolt server
+ * Type definitions for the OmniFoil server
  */
 
 export interface RequestContext<T = any> {

@@ -1,6 +1,6 @@
 # Configuration Guide
 
-This document provides a comprehensive guide to configuring tinfoil-bolt, including environment variables, behavior details, and best practices.
+This document provides a comprehensive guide to configuring OmniFoil, including environment variables, behavior details, and best practices.
 
 ## Table of Contents
 
@@ -413,7 +413,7 @@ TITLEDB_LANGUAGE=pt
 TITLEDB_CACHE_DIR=./data/titledb
 
 # Custom location
-TITLEDB_CACHE_DIR=/var/cache/tinfoil-bolt/titledb
+TITLEDB_CACHE_DIR=/var/cache/OmniFoil/titledb
 
 # Persistent volume (Docker)
 TITLEDB_CACHE_DIR=/data/titledb
@@ -488,7 +488,7 @@ Media cache stores downloaded game artwork (icons and banners) locally to avoid 
 MEDIA_CACHE_DIR=./data/media
 
 # Custom location
-MEDIA_CACHE_DIR=/var/cache/tinfoil-bolt/media
+MEDIA_CACHE_DIR=/var/cache/OmniFoil/media
 
 # Persistent volume (Docker)
 MEDIA_CACHE_DIR=/data/media
@@ -581,7 +581,7 @@ REFERRER=https://verified-shop.example.com
 
 ## Directory Aliasing
 
-When multiple directories are configured, tinfoil-bolt generates unique aliases for each directory.
+When multiple directories are configured, OmniFoil generates unique aliases for each directory.
 
 ### Algorithm
 
@@ -818,7 +818,7 @@ All timestamps use ISO 8601 with timezone:
 
 ### Validation on Startup
 
-tinfoil-bolt validates all configuration on startup and exits with an error if invalid.
+OmniFoil validates all configuration on startup and exits with an error if invalid.
 
 #### Required Variables
 
@@ -933,7 +933,7 @@ AUTH_PASS=secure_password
 ```yaml
 version: '3.8'
 services:
-  tinfoil-bolt:
+  OmniFoil:
     build: .
     ports:
       - "3000:3000"

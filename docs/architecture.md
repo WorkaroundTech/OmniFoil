@@ -1,6 +1,6 @@
 # Architecture
 
-This document explains the internal architecture of tinfoil-bolt, including the middleware composition system, request lifecycle, error handling patterns, and key components.
+This document explains the internal architecture of OmniFoil, including the middleware composition system, request lifecycle, error handling patterns, and key components.
 
 ## Table of Contents
 
@@ -16,7 +16,7 @@ This document explains the internal architecture of tinfoil-bolt, including the 
 
 ## System Overview
 
-tinfoil-bolt is built as a composable HTTP server using a middleware chain pattern. The architecture is designed for:
+OmniFoil is built as a composable HTTP server using a middleware chain pattern. The architecture is designed for:
 
 - **Simplicity:** Zero external dependencies (uses only Bun runtime)
 - **Performance:** Native file serving with sendfile syscall
@@ -345,7 +345,7 @@ throw new ServiceError(404, 'File not found')
 
 // 401 with WWW-Authenticate header
 throw new ServiceError(401, 'Unauthorized', {
-  'WWW-Authenticate': 'Basic realm="tinfoil-bolt"'
+  'WWW-Authenticate': 'Basic realm="OmniFoil"'
 })
 
 // 416 with Content-Range header

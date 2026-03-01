@@ -1,6 +1,6 @@
 # Troubleshooting Guide
 
-This guide covers common issues, error messages, and their solutions when running tinfoil-bolt.
+This guide covers common issues, error messages, and their solutions when running OmniFoil.
 
 ## Table of Contents
 
@@ -129,7 +129,7 @@ ls -R /path/to/games
 find /path/to/games -type f \( -name "*.nsp" -o -name "*.nsz" -o -name "*.xci" -o -name "*.xciz" \)
 
 # 3. Clear cache by restarting server
-docker restart tinfoil-bolt
+docker restart OmniFoil
 
 # Or disable cache temporarily
 CACHE_TTL=0 bun run src/main.ts
@@ -154,7 +154,7 @@ ls -la /path/to/games/
 chmod +r /path/to/games/*.nsp
 
 # Verify file extensions (case-sensitive)
-# .NSP vs .nsp - tinfoil-bolt expects lowercase
+# .NSP vs .nsp - OmniFoil expects lowercase
 
 # Rename if needed
 rename 's/\.NSP$/.nsp/' *.NSP
@@ -167,7 +167,7 @@ rename 's/\.NSP$/.nsp/' *.NSP
 **Solutions:**
 ```bash
 # Option 1: Restart server
-docker restart tinfoil-bolt
+docker restart OmniFoil
 
 # Option 2: Reduce cache TTL
 CACHE_TTL=60  # 1 minute
@@ -214,7 +214,7 @@ curl -I "http://localhost:3000/files/games/Super%20Mario%20Odyssey.nsp"
 **Solutions:**
 ```bash
 # 1. Check server logs for errors
-docker logs tinfoil-bolt
+docker logs OmniFoil
 
 # 2. Test range request support
 curl -H "Range: bytes=0-1023" http://localhost:3000/files/games/test.nsp
@@ -348,7 +348,7 @@ curl -H "Range: bytes=$DOWNLOADED-" -o game.nsp.part http://localhost:3000/files
 
 **Error:** Server returns 200 instead of 206 for multi-range request
 
-**Cause:** tinfoil-bolt doesn't support multi-range requests (this is intentional)
+**Cause:** OmniFoil doesn't support multi-range requests (this is intentional)
 
 **Behavior:**
 ```bash
@@ -412,13 +412,13 @@ volumes:
 **Check logs:**
 ```bash
 # View container logs
-docker logs tinfoil-bolt
+docker logs OmniFoil
 
 # Follow logs in real-time
-docker logs -f tinfoil-bolt
+docker logs -f OmniFoil
 
 # Check last 50 lines
-docker logs --tail 50 tinfoil-bolt
+docker logs --tail 50 OmniFoil
 ```
 
 **Common causes:**
@@ -433,13 +433,13 @@ docker logs --tail 50 tinfoil-bolt
 **Solution:**
 ```bash
 # 1. Verify mount is correct
-docker inspect tinfoil-bolt | grep -A 10 Mounts
+docker inspect OmniFoil | grep -A 10 Mounts
 
 # 2. Check files exist on host
 ls /host/path/to/games
 
 # 3. Exec into container and check
-docker exec -it tinfoil-bolt sh
+docker exec -it OmniFoil sh
 ls /games  # Should show files
 
 # 4. Verify volume syntax
@@ -455,7 +455,7 @@ volumes:
 **Solution:**
 ```bash
 # Restart container
-docker restart tinfoil-bolt
+docker restart OmniFoil
 
 # Or rebuild
 docker compose down
@@ -529,7 +529,7 @@ md5sum /path/to/games/filename.nsp
 ls -lh /path/to/games/filename.nsp
 
 # Check server logs for errors during transfer
-docker logs tinfoil-bolt | grep ERROR
+docker logs OmniFoil | grep ERROR
 ```
 
 ---
@@ -583,7 +583,7 @@ iperf3 -s  # On server
 iperf3 -c server-ip  # On client
 
 # 3. Verify no rate limiting
-# tinfoil-bolt has no built-in rate limiting
+# OmniFoil has no built-in rate limiting
 
 # 4. Check Docker network mode
 # In docker-compose.yml, use host network for best performance:
@@ -604,7 +604,7 @@ iostat  # Check disk I/O
 CACHE_TTL=300  # 5 minutes
 
 # 2. Monitor memory
-docker stats tinfoil-bolt
+docker stats OmniFoil
 
 # 3. Set memory limit (Docker)
 mem_limit: 256m  # In docker-compose.yml
@@ -664,7 +664,7 @@ docker ps  # Check PORTS column
 
 ### SSL/TLS Issues
 
-**Note:** tinfoil-bolt doesn't support HTTPS (Tinfoil limitation)
+**Note:** OmniFoil doesn't support HTTPS (Tinfoil limitation)
 
 **For secure access:**
 1. Use VPN (WireGuard, Tailscale)
@@ -689,16 +689,16 @@ LOG_FORMAT=combined GAMES_DIRECTORY=/path bun run src/main.ts
 
 ```bash
 # Docker logs
-docker logs -f tinfoil-bolt
+docker logs -f OmniFoil
 
 # Grep for errors
-docker logs tinfoil-bolt | grep -i error
+docker logs OmniFoil | grep -i error
 
 # Show only last 100 lines
-docker logs --tail 100 tinfoil-bolt
+docker logs --tail 100 OmniFoil
 
 # Follow logs with timestamp
-docker logs -f --timestamps tinfoil-bolt
+docker logs -f --timestamps OmniFoil
 ```
 
 ### Log Analysis
@@ -712,13 +712,13 @@ docker logs -f --timestamps tinfoil-bolt
 **Example log patterns:**
 ```bash
 # Find all 404s
-docker logs tinfoil-bolt | grep " 404 "
+docker logs OmniFoil | grep " 404 "
 
 # Find all errors
-docker logs tinfoil-bolt | grep -E " (4|5)[0-9]{2} "
+docker logs OmniFoil | grep -E " (4|5)[0-9]{2} "
 
 # Find slow requests (>1 second)
-docker logs tinfoil-bolt | grep -E "[0-9]{4,} ms"
+docker logs OmniFoil | grep -E "[0-9]{4,} ms"
 ```
 
 ### Debug Mode
@@ -743,7 +743,7 @@ bun --inspect src/main.ts
 
 ### Before Asking for Help
 
-1. **Check logs:** `docker logs tinfoil-bolt`
+1. **Check logs:** `docker logs OmniFoil`
 2. **Verify configuration:** Review environment variables
 3. **Test endpoints:** Use curl to test shop.json and file downloads
 4. **Check documentation:** Review README and docs/
@@ -772,7 +772,7 @@ When opening an issue, include:
 
 3. **Error logs:**
    ```bash
-   docker logs --tail 50 tinfoil-bolt
+   docker logs --tail 50 OmniFoil
    ```
 
 4. **Steps to reproduce:**
@@ -844,4 +844,4 @@ curl -s http://localhost:3000/shop.json | jq '.files | length'
 - [ ] No other heavy processes running
 - [ ] Adequate server resources
 
-For issues not covered here, check the [GitHub Issues](https://github.com/WorkaroundTech/tinfoil-bolt/issues) or open a new one.
+For issues not covered here, check the [GitHub Issues](https://github.com/WorkaroundTech/OmniFoil/issues) or open a new one.

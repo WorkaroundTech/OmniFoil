@@ -1,7 +1,7 @@
 services:
-  tinfoil-bolt:
-    image: tinfoil-bolt
-    container_name: tinfoil-bolt
+  OmniFoil:
+    image: OmniFoil
+    container_name: OmniFoil
     build: .
     restart: unless-stopped
     ports:

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Integration test script for HTTP Range Request support in tinfoil-bolt
+# Integration test script for HTTP Range Request support in OmniFoil
 
 set -e
 
@@ -8,7 +8,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-TEST_DIR="/tmp/tinfoil-range-test"
+TEST_DIR="/tmp/OmniFoil-range-test"
 TEST_FILE="$TEST_DIR/test-game.nsp"
 PORT=4321
 
@@ -30,8 +30,8 @@ dd if=/dev/zero of="$TEST_FILE" bs=1M count=10 2>/dev/null
 
 echo "Test file created: $(ls -lh $TEST_FILE | awk '{print $5}')"
 
-# Start tinfoil-bolt server in background
-echo "Starting tinfoil-bolt server on port $PORT..."
+# Start OmniFoil server in background
+echo "Starting OmniFoil server on port $PORT..."
 cd "$PROJECT_ROOT"
 export PORT=$PORT
 export GAMES_DIRS="$TEST_DIR"

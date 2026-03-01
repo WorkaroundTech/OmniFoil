@@ -1,7 +1,7 @@
-# tinfoil-bolt
-![tinfoil-bolt logo](bolt-logo-transparent-bg.png)
+# OmniFoil
+![OmniFoil logo](bolt-logo-transparent-bg.png)
 
-**tinfoil-bolt** is a lightning-fast, zero-dependency, and lightweight backend server to serve your personal game backup library to Tinfoil and CyberFoil clients on Nintendo Switch.
+**OmniFoil** is a lightning-fast, zero-dependency, and lightweight backend server to serve your personal game backup library to Tinfoil and CyberFoil clients on Nintendo Switch.
 
 Built with [Bun](https://bun.sh), it replaces bloated, unmaintainable alternatives with a clean, modular TypeScript codebase that does exactly what you need and nothing else.
 
@@ -9,7 +9,7 @@ Built with [Bun](https://bun.sh), it replaces bloated, unmaintainable alternativ
 
 Many existing Tinfoil server solutions suffer from feature creep: auto-updaters that pose security risks, heavy polling mechanisms, required databases, or complex UIs.
 
-**tinfoil-bolt is different:**
+**OmniFoil is different:**
 
 * **Zero Dependencies:** No `node_modules` black hole. Uses Bun's native HTTP and FileSystem APIs.
 * **CyberFoil Compatible:** Full support for CyberFoil clients with modern API endpoints, rich metadata, game artwork, and proper update/DLC grouping.
@@ -22,7 +22,7 @@ Many existing Tinfoil server solutions suffer from feature creep: auto-updaters 
 
 ### Option 1: Docker Compose (Recommended)
 
-This is the easiest way to run `tinfoil-bolt` on your NAS, Home Server, or Proxmox LXC container.
+This is the easiest way to run `OmniFoil` on your NAS, Home Server, or Proxmox LXC container.
 
 1. Clone or download this entire repository.
 2. Copy `.env.example` to `.env` and update with your game directories and optional auth settings.
@@ -73,7 +73,7 @@ Copy `.env.example` to `.env` and configure the following variables:
 
 ### TitleDB & Metadata Enrichment
 
-**tinfoil-bolt** now supports TitleDB integration to provide rich game metadata for CyberFoil clients. This enables:
+**OmniFoil** now supports TitleDB integration to provide rich game metadata for CyberFoil clients. This enables:
 
 - **Real game titles** (instead of filename-based names)
 - **Game cover artwork** (icons and banners)
@@ -93,7 +93,7 @@ Copy `.env.example` to `.env` and configure the following variables:
 
 **How it works:**
 
-1. On startup, tinfoil-bolt downloads TitleDB datasets (titles, versions) based on your region/language
+1. On startup, OmniFoil downloads TitleDB datasets (titles, versions) based on your region/language
 2. When scanning your library, it attempts to extract title IDs from filenames
 3. If a title ID is found, it enriches the game entry with TitleDB metadata
 4. Game icons and banners are served via `/api/shop/icon/:title_id` and `/api/shop/banner/:title_id`
@@ -128,7 +128,7 @@ Docker Compose:
 
 ```yaml
 services:
-  tinfoil-bolt:
+  OmniFoil:
     env_file: .env
     environment:
       - PORT=3000
@@ -151,7 +151,7 @@ Note: Keep the server on a trusted LAN. If your client supports Basic Auth, set 
 
 ### HTTP Range Request Support
 
-tinfoil-bolt supports HTTP 206 Partial Content responses, enabling resumable downloads for large files. This is especially useful for:
+OmniFoil supports HTTP 206 Partial Content responses, enabling resumable downloads for large files. This is especially useful for:
 
 * **Interrupted downloads:** Resume a failed transfer without re-downloading the entire file
 * **Bandwidth efficiency:** Download only the portion of a file you need

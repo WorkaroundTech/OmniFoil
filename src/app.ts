@@ -11,7 +11,7 @@ import { initializeTitleDB } from "./services/titledb";
 
 const asciiHeader = `
 ╔════════════════════════════════════════╗
-║     ⚡ tinfoil-bolt server running!    ║
+║     ⚡ OmniFoil server running!    ║
 ╚════════════════════════════════════════╝
 `;
 

@@ -29,7 +29,7 @@ export function respondUnauthorized(): Response {
   return new Response("Authentication required", {
     status: 401,
     headers: {
-      "WWW-Authenticate": "Basic realm=\"tinfoil-bolt\"",
+      "WWW-Authenticate": "Basic realm=\"OmniFoil\"",
       "Content-Type": "text/plain; charset=utf-8",
     },
   });

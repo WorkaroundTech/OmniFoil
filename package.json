@@ -1,5 +1,5 @@
 {
-  "name": "tinfoil-bolt",
+  "name": "OmniFoil",
   "private": true,
   "scripts": {
     "start": "bun run src/main.ts",

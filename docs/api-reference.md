@@ -1,6 +1,6 @@
 # API Reference
 
-This document provides a complete reference for all HTTP endpoints exposed by tinfoil-bolt.
+This document provides a complete reference for all HTTP endpoints exposed by OmniFoil.
 
 ## Table of Contents
 
@@ -35,7 +35,7 @@ Authorization: Basic <base64(username:password)>
 
 **Response on Missing/Invalid Credentials:**
 - Status: `401 Unauthorized`
-- Header: `WWW-Authenticate: Basic realm="tinfoil-bolt"`
+  - Header: `WWW-Authenticate: Basic realm="OmniFoil"`
 - Body: `{"error": "Unauthorized"}`
 
 ---
@@ -90,10 +90,10 @@ curl -H "Accept: text/html" http://localhost:3000/
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>tinfoil-bolt</title>
+    <title>OmniFoil</title>
   </head>
   <body>
-    <h1>tinfoil-bolt</h1>
+    <h1>OmniFoil</h1>
     <ul>
       <li><a href="/shop.json">shop.json</a></li>
       <li><a href="/shop.tfl">shop.tfl</a></li>
@@ -139,7 +139,7 @@ Uauth: <user-auth-token>
 **CyberFoil Shop Format:**
 ```json
 {
-  "success": "Welcome to tinfoil-bolt!",
+  "success": "Welcome to OmniFoil!",
   "referrer": "https://shop.example.com",
   "files": [
     {
@@ -213,7 +213,7 @@ curl http://localhost:3000/shop.json
     "dlc",
     "updates"
   ],
-  "success": "Welcome to tinfoil-bolt!"
+  "success": "Welcome to OmniFoil!"
 }
 ```
 
@@ -604,7 +604,7 @@ curl http://localhost:3000/any/undefined/path
 **Response:**
 - Status: `200 OK`
 - Content-Type: `application/json`
-- Body: `{"status": "tinfoil-bolt is running"}`
+- Body: `{"status": "OmniFoil is running"}`
 
 **Note:** This serves as a basic health check endpoint.
 
@@ -642,7 +642,7 @@ All errors return JSON with an `error` field:
   "error": "Unauthorized"
 }
 ```
-**Headers:** `WWW-Authenticate: Basic realm="tinfoil-bolt"`
+**Headers:** `WWW-Authenticate: Basic realm="OmniFoil"`
 
 #### 404 Not Found
 ```json
@@ -723,7 +723,7 @@ curl -H "Range: bytes=500000000-" -o game.nsp.part http://localhost:3000/files/g
 # Simple health check
 curl http://localhost:3000/health
 
-# Response: {"status":"tinfoil-bolt is running"}
+# Response: {"status":"OmniFoil is running"}
 ```
 
 ---

@@ -10,7 +10,7 @@ In practice, this means endpoint behavior and JSON field shapes were modeled to 
 
 ## Overview
 
-`tinfoil-bolt` supports both legacy Tinfoil-style endpoints and CyberFoil-compatible endpoints.
+`OmniFoil` supports both legacy Tinfoil-style endpoints and CyberFoil-compatible endpoints.
 
 - Legacy catalog: `GET /shop.json`, `GET /shop.tfl`
 - Legacy file path downloads: `GET /files/*`

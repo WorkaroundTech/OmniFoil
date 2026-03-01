@@ -1,6 +1,6 @@
 # Development Guide
 
-This guide covers local development setup, testing, code organization, and contribution guidelines for tinfoil-bolt.
+This guide covers local development setup, testing, code organization, and contribution guidelines for OmniFoil.
 
 ## Table of Contents
 
@@ -48,14 +48,14 @@ bun run --version
 ### 1. Clone Repository
 
 ```bash
-git clone https://github.com/WorkaroundTech/tinfoil-bolt.git
-cd tinfoil-bolt
+git clone https://github.com/WorkaroundTech/OmniFoil.git
+cd OmniFoil
 ```
 
 ### 2. Install Dependencies
 
 ```bash
-# tinfoil-bolt has zero runtime dependencies!
+# OmniFoil has zero runtime dependencies!
 # This only installs dev dependencies (TypeScript, testing tools)
 bun install
 ```
@@ -141,7 +141,7 @@ Expected response:
 ## Project Structure
 
 ```
-tinfoil-bolt/
+OmniFoil/
 ├── src/                      # Source code
 │   ├── main.ts              # Entry point (starts server)
 │   ├── app.ts               # App composition (middleware chain)

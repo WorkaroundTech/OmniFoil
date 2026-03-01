@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This file tracks the implementation progress for adding TitleDB integration and metadata enrichment to `tinfoil-bolt`, enabling CyberFoil clients to display rich game information similar to AeroFoil.
+This file tracks the implementation progress for adding TitleDB integration and metadata enrichment to `OmniFoil`, enabling CyberFoil clients to display rich game information similar to AeroFoil.
 
 ## Feature Description
 

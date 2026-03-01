@@ -53,5 +53,5 @@ export const router: Handler = async (req: Request, ctx: RequestContext) => {
   }
 
   // 8. Health/Status endpoint
-  return new Response(`* tinfoil-bolt is active.\nIndex: / or /tinfoil\nShop: /shop.tfl`, { status: 200 });
+  return new Response(`* OmniFoil is active.\nIndex: / or /tinfoil\nShop: /shop.tfl`, { status: 200 });
 };
