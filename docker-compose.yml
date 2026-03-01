@@ -19,6 +19,8 @@ services:
       - AUTH_PASS=${AUTH_PASS}
       - AUTH_CREDENTIALS=${AUTH_CREDENTIALS}
     volumes:
+      # Reuse repository data directory inside the container
+      - ./data:/app/data
       # Mount your actual game directories (from host) to /data/games1, /data/games2, etc.
       # Update the left side with your real paths, keep the right side as /data/gamesN
       - /mnt/nas/switch_games:/data/games1:ro
