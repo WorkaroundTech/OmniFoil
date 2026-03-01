@@ -10,7 +10,7 @@ import type { AppType } from "../types";
 
 export interface ShopData {
   files: Array<{ url: string; size: number }>;
-  success: string;
+  success?: string;
   referrer?: string;
 }
 
@@ -300,13 +300,21 @@ async function buildShopCatalog(limitForAllSection: number = 50): Promise<ShopCa
   );
 
   const shopData: ShopData = {
-    success: SUCCESS_MESSAGE || "",
-    ...(REFERRER && { referrer: REFERRER }),
     files: entries.map((entry) => ({
       url: `/api/get_game/${entry.id}#${entry.filename}`,
       size: entry.size,
     })),
   };
+
+  // Always include success for CyberFoil (even if empty)
+  // For Tinfoil, only include if non-empty (to avoid empty banners)
+  if (SUCCESS_MESSAGE) {
+    shopData.success = SUCCESS_MESSAGE;
+  }
+
+  if (REFERRER) {
+    shopData.referrer = REFERRER;
+  }
 
   return {
     shopData,
@@ -359,8 +367,17 @@ export async function buildShopSections(limit: number = 50): Promise<ShopSection
 
 /**
  * Scans all configured base directories and builds shop data
+ * @param isCyberFoil - If true, always includes success key (even if empty). If false, omits when empty.
  */
-export async function buildShopData(): Promise<ShopData> {
+export async function buildShopData(isCyberFoil: boolean = false): Promise<ShopData> {
   const catalog = await getShopCatalog();
-  return catalog.shopData;
+  const shopData = { ...catalog.shopData };
+
+  // CyberFoil always wants the success key (even if empty) for consistent API contracts
+  // Tinfoil omits it when empty to avoid rendering empty banners on client side
+  if (isCyberFoil && !shopData.success) {
+    shopData.success = "";
+  }
+
+  return shopData;
 }

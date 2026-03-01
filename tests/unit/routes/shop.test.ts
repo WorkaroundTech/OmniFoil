@@ -25,8 +25,15 @@ describe("routes/shop", () => {
 
       expect(data).toHaveProperty("files");
       expect(Array.isArray(data.files)).toBe(true);
-      expect(data).toHaveProperty("success");
-      expect(typeof data.success).toBe("string");
+    });
+
+    it("should omit success field for non-CyberFoil requests when unset", async () => {
+      const req = new Request("http://localhost/shop.json");
+      const response = await shopHandler(req, ctx);
+      const data = await response.json() as any;
+
+      // When not a CyberFoil request and SUCCESS_MESSAGE is unset, success should not be present
+      expect(data.success).toBeUndefined();
     });
 
     it("should have file objects with url and size", async () => {

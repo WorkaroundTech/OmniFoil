@@ -7,8 +7,13 @@ describe("lib/shop", () => {
       const shopData = await buildShopData();
 
       expect(shopData).toHaveProperty("files");
-      expect(shopData).toHaveProperty("success");
       expect(Array.isArray(shopData.files)).toBe(true);
+    });
+
+    it("should include success field for CyberFoil clients", async () => {
+      const shopData = await buildShopData(true);
+
+      expect(shopData).toHaveProperty("success");
       expect(typeof shopData.success).toBe("string");
     });
 
