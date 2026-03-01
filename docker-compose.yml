@@ -1,7 +1,7 @@
 services:
-  OmniFoil:
-    image: OmniFoil
-    container_name: OmniFoil
+  omnifoil:
+    image: omnifoil
+    container_name: omnifoil
     build: .
     restart: unless-stopped
     ports:
