@@ -329,7 +329,10 @@ async function buildShopCatalog(limitForAllSection: number = 50): Promise<ShopCa
       let bannerUrl: string | null = null;
       let releaseDate: number | undefined = undefined;
       let rating: number | undefined = undefined;
-      let hasTitleDbMatch = false;
+      
+      // Entry has a valid titleId if it was extracted from filename or override
+      // Goes to "Other" section ONLY if titleId is null (no identification at all)
+      const hasTitleDbMatch = titleId !== null;
       
       // Use base title ID if available (for updates/DLC), otherwise use the file's title ID (for base games)
       const titleIdForMetadata = baseTitleId || titleId;
@@ -337,7 +340,6 @@ async function buildShopCatalog(limitForAllSection: number = 50): Promise<ShopCa
       if (titleIdForMetadata) {
         const titleInfo = await getTitleInfo(titleIdForMetadata);
         if (titleInfo) {
-          hasTitleDbMatch = true;
           titleName = titleInfo.name;
           category = titleInfo.category || [];
           iconUrl = titleInfo.iconUrl || null;
