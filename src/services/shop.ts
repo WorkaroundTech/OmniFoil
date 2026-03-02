@@ -33,6 +33,8 @@ export interface CatalogFileEntry {
   bannerUrl: string | null;
   baseTitleId: string | null;
   hasTitleDbMatch: boolean;
+  releaseDate?: number;   // Unix timestamp from TitleDB
+  rating?: number;        // 0-10 scale from TitleDB
 }
 
 interface ShopSectionsItem {
@@ -122,8 +124,29 @@ function buildSectionsPayload(entries: CatalogFileEntry[], limit: number): ShopS
   const updates = matchedEntries.filter((entry) => entry.appType === 2);
   const dlc = matchedEntries.filter((entry) => entry.appType === 1);
 
-  // Sort base games
-  const sortedByNewest = [...baseGames].sort((a, b) => b.id - a.id);
+  // Sort base games by release date (newest first) for new section
+  const sortedByReleaseDate = [...baseGames].sort((a, b) => {
+    const dateA = a.releaseDate || 0;
+    const dateB = b.releaseDate || 0;
+    // Sort by release date descending (most recent first)
+    if (dateA !== dateB) return dateB - dateA;
+    // Tiebreaker: sort by ID descending (most recently added to catalog)
+    return b.id - a.id;
+  });
+
+  // Sort base games by rating (highest first) for recommended section
+  const sortedByRating = [...baseGames].sort((a, b) => {
+    const ratingA = a.rating ?? 0;
+    const ratingB = b.rating ?? 0;
+    // Sort by rating descending (highest first)
+    if (ratingA !== ratingB) return ratingB - ratingA;
+    // Tiebreaker: sort by release date descending
+    const dateA = a.releaseDate || 0;
+    const dateB = b.releaseDate || 0;
+    return dateB - dateA;
+  });
+
+  // Sort base games by name for all section
   const sortedByName = [...baseGames].sort((a, b) => {
     const nameA = a.titleName || a.name;
     const nameB = b.titleName || b.name;
@@ -132,8 +155,8 @@ function buildSectionsPayload(entries: CatalogFileEntry[], limit: number): ShopS
 
   // Apply limit to discovery sections (new/recommended) per AeroFoil spec
   // Only include matched base games, unmatched entries go to "Other"
-  const newItems = sortedByNewest.slice(0, safeLimit).map(toSectionsItem);
-  const recommendedItems = [...newItems];
+  const newItems = sortedByReleaseDate.slice(0, safeLimit).map(toSectionsItem);
+  const recommendedItems = sortedByRating.slice(0, safeLimit).map(toSectionsItem);
 
   // Group updates by base title ID and get latest version per title
   // Following AeroFoil's pattern: group by the base game's title_id
@@ -304,6 +327,8 @@ async function buildShopCatalog(limitForAllSection: number = 50): Promise<ShopCa
       let category: string[] = [];
       let iconUrl: string | null = null;
       let bannerUrl: string | null = null;
+      let releaseDate: number | undefined = undefined;
+      let rating: number | undefined = undefined;
       let hasTitleDbMatch = false;
       
       // Use base title ID if available (for updates/DLC), otherwise use the file's title ID (for base games)
@@ -317,6 +342,8 @@ async function buildShopCatalog(limitForAllSection: number = 50): Promise<ShopCa
           category = titleInfo.category || [];
           iconUrl = titleInfo.iconUrl || null;
           bannerUrl = titleInfo.bannerUrl || null;
+          releaseDate = titleInfo.releaseDate;
+          rating = titleInfo.rating;
         }
       }
       
@@ -353,6 +380,8 @@ async function buildShopCatalog(limitForAllSection: number = 50): Promise<ShopCa
         bannerUrl,
         baseTitleId: baseTitleId || null,
         hasTitleDbMatch,
+        releaseDate,
+        rating,
       };
     })
   );
