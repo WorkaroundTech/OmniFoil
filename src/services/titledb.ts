@@ -404,6 +404,38 @@ export async function searchTitles(query: string, limit: number = 20): Promise<T
 }
 
 /**
+ * Search for a title by exact or near-exact name match
+ * Returns the best matching title ID, or null if no good match found
+ */
+export async function searchByName(titleName: string): Promise<string | null> {
+  if (!TITLEDB_ENABLED) return null;
+  
+  await initializeTitleDB();
+  
+  if (!titleDBCache) return null;
+  
+  const normalizedQuery = titleName.toLowerCase().trim();
+  
+  // First try exact match
+  for (const entry of titleDBCache.titles.values()) {
+    if (entry.name.toLowerCase().trim() === normalizedQuery) {
+      return entry.id;
+    }
+  }
+  
+  // Then try partial match (first result)
+  for (const entry of titleDBCache.titles.values()) {
+    if (entry.name.toLowerCase().includes(normalizedQuery)) {
+      console.log(`[TITLEDB] Found match for "${titleName}": ${entry.name} (${entry.id})`);
+      return entry.id;
+    }
+  }
+  
+  console.warn(`[TITLEDB] No match found for title name: "${titleName}"`);
+  return null;
+}
+
+/**
  * Force refresh the TitleDB cache
  */
 export async function refreshTitleDB(): Promise<void> {

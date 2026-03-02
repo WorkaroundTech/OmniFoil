@@ -63,3 +63,7 @@ export const TITLEDB_BASE_URL = "https://tinfoil.media/repo/db";
 export const MEDIA_CACHE_DIR = process.env.MEDIA_CACHE_DIR || "./data/media";
 export const MEDIA_CACHE_TTL = parseInt(process.env.MEDIA_CACHE_TTL || "604800"); // 7 days in seconds
 
+// Override configuration
+export const OVERRIDE_FILENAME = process.env.OVERRIDE_FILENAME || "omnifoil-overrides.json";
+export const OVERRIDES_ENABLED = process.env.OVERRIDES_ENABLED !== "false"; // Default enabled
+

@@ -44,6 +44,8 @@ All configuration is done through environment variables. No configuration files 
 | `TITLEDB_AUTO_UPDATE` | boolean | `true` | No | Auto-download TitleDB on startup |
 | `MEDIA_CACHE_DIR` | string | `./data/media` | No | Directory for cached media (icons/banners) |
 | `MEDIA_CACHE_TTL` | number | `604800` | No | Media cache TTL in seconds (default 7 days) |
+| `OVERRIDE_FILENAME` | string | `omnifoil-overrides.json` | No | Name of override files to look for |
+| `OVERRIDES_ENABLED` | boolean | `true` | No | Enable manual file identification overrides |
 
 ---
 
@@ -548,6 +550,176 @@ MEDIA_CACHE_TTL=315360000
 | Active development | 1-7 days | Get updates frequently |
 | Limited bandwidth | 30+ days | Minimize downloads |
 | Fast connection | 7 days | Balance freshness and efficiency |
+
+---
+
+### File Overrides
+
+OmniFoil's override system allows you to manually specify metadata for files with non-standard names that cannot be automatically identified. Override files are distributed (placed alongside your game files) and support smart resolution using TitleDB lookups.
+
+#### Override Filename
+
+**Variable:** `OVERRIDE_FILENAME`
+
+**Default:** `omnifoil-overrides.json`
+
+**Description:** Name of the override file to look for in game directories.
+
+**Examples:**
+```bash
+# Default name
+OVERRIDE_FILENAME=omnifoil-overrides.json
+
+# Custom name
+OVERRIDE_FILENAME=my-overrides.json
+
+# Hidden file (Linux/Mac)
+OVERRIDE_FILENAME=.overrides.json
+```
+
+**Notes:**
+- Override files are discovered automatically during directory scanning
+- Each subdirectory can have its own override file
+- Override files are excluded from the game catalog
+
+---
+
+#### Overrides Enabled
+
+**Variable:** `OVERRIDES_ENABLED`
+
+**Default:** `true`
+
+**Description:** Enable or disable the override system.
+
+**Examples:**
+```bash
+# Enabled (default)
+OVERRIDES_ENABLED=true
+
+# Disabled
+OVERRIDES_ENABLED=false
+```
+
+**Use Cases:**
+- **Enabled:** When you have files with non-standard names that need manual identification
+- **Disabled:** Performance optimization if you don't need overrides
+
+---
+
+#### Override File Format
+
+Override files are JSON files that map filenames to metadata overrides. Place the `omnifoil-overrides.json` file in the same directory as the files you want to override.
+
+**Basic Structure:**
+```json
+{
+  "overrides": {
+    "filename.nsp": {
+      "titleName": "Game Title",
+      "appType": 0,
+      "version": "65536"
+    }
+  }
+}
+```
+
+**Minimal Specification (Smart Resolution):**
+
+The system can automatically resolve missing fields using TitleDB lookups. You only need to specify the game's title name and type:
+
+```json
+{
+  "overrides": {
+    "badly-named-update.nsp": {
+      "titleName": "The Legend of Zelda: Tears of the Kingdom",
+      "appType": "UPDATE",
+      "version": "393216"
+    }
+  }
+}
+```
+
+The system will:
+1. Search TitleDB for "The Legend of Zelda: Tears of the Kingdom"
+2. Find the base game's title ID (e.g., `0100F2C0115B6000`)
+3. Convert it to an update title ID (e.g., `0100F2C0115B6800`)
+4. Derive the base title ID for proper grouping
+5. Fetch artwork and metadata from TitleDB
+
+**Full Manual Specification:**
+
+For complete control, you can specify all fields manually:
+
+```json
+{
+  "overrides": {
+    "custom-file.nsp": {
+      "titleId": "0100F2C0115B6000",
+      "appType": "GAME",
+      "titleName": "Metroid Dread",
+      "baseTitleId": null,
+      "version": "0",
+      "category": ["Action", "Adventure"],
+      "iconUrl": "https://example.com/icon.jpg",
+      "bannerUrl": "https://example.com/banner.jpg"
+    }
+  }
+}
+```
+
+**Override Fields:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `titleName` | string | No | Game title (for smart resolution or display override) |
+| `appType` | string/number | No | "GAME"/"BASE"/0, "DLC"/1, "UPDATE"/2, "DEMO"/3 (case-insensitive) |
+| `version` | string | No | Version string (e.g., "65536") |
+| `titleId` | string | No | Explicit title ID (16 hex chars) - bypasses smart resolution |
+| `baseTitleId` | string | No | Base game title ID (for updates/DLC) |
+| `category` | string[] | No | Categories/genres (e.g., ["RPG", "Adventure"]) |
+| `iconUrl` | string | No | Custom icon URL |
+| `bannerUrl` | string | No | Custom banner URL |
+
+**AppType Values:**
+- `"GAME"` or `"BASE"` or `0` = Base game
+- `"DLC"` or `1` = Downloadable content
+- `"UPDATE"` or `"PATCH"` or `2` = Game update/patch
+- `"DEMO"` or `3` = Demo version
+
+All string values are case-insensitive (e.g., "game", "Game", "GAME" all work).
+
+**Example Use Case:**
+
+You have a file named `sxs-the_legend_of_zelda_tears_of_the_kingdom_v393216.nsp` that cannot be identified automatically. Create `omnifoil-overrides.json` in the same directory:
+
+```json
+{
+  "overrides": {
+    "sxs-the_legend_of_zelda_tears_of_the_kingdom_v393216.nsp": {
+      "titleName": "The Legend of Zelda: Tears of the Kingdom",
+      "appType": "UPDATE",
+      "version": "393216"
+    }
+  }
+}
+```
+
+The system will automatically:
+- Find the base game in TitleDB
+- Generate the correct update title ID
+- Fetch metadata and artwork
+- Properly group it with the base game
+
+**Complete Example:**
+
+See [docs/omnifoil-overrides-example.json](omnifoil-overrides-example.json) for a comprehensive example with multiple override scenarios.
+
+**Notes:**
+- Override files travel with your game directories (useful for portable storage)
+- Changes require cache refresh (restart server or wait for `CACHE_TTL`)
+- Smart resolution requires TitleDB to be enabled
+- Override files are excluded from the game catalog automatically
 
 ---
 

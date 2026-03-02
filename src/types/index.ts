@@ -78,3 +78,26 @@ export interface FileIdentification {
   isUpdate: boolean;
   baseTitleId?: string;    // For updates/DLC, the base game title ID
 }
+
+// File override types for manual identification
+export interface FileOverride {
+  // Minimal specification (smart resolution)
+  titleName?: string;      // Title name to lookup in TitleDB
+  appType?: AppType | string;  // 0/"GAME"/"BASE", 1/"DLC", 2/"UPDATE", 3/"DEMO" (case-insensitive)
+  version?: string;        // Version string
+  
+  // Manual specification (bypass smart resolution)
+  titleId?: string;        // Explicit title ID (16 hex chars)
+  baseTitleId?: string;    // Base game title ID for updates/DLC
+  
+  // Override TitleDB metadata
+  category?: string[];     // Categories/genres
+  iconUrl?: string;        // Icon URL
+  bannerUrl?: string;      // Banner URL
+}
+
+export interface OverrideFile {
+  overrides: {
+    [filename: string]: FileOverride;
+  };
+}

@@ -1,0 +1,25 @@
+{
+  "overrides": {
+    "sxs-the_legend_of_zelda_tears_of_the_kingdom_v393216.nsp": {
+      "titleName": "The Legend of Zelda: Tears of the Kingdom",
+      "appType": "UPDATE",
+      "version": "393216"
+    },
+    "badly-named-game-file.nsp": {
+      "titleName": "Super Mario Odyssey",
+      "appType": "GAME"
+    },
+    "weird-dlc-name.nsp": {
+      "titleName": "Splatoon 3",
+      "appType": "DLC"
+    },
+    "manual-override-example.nsp": {
+      "titleId": "0100F2C0115B6000",
+      "appType": "BASE",
+      "titleName": "Metroid Dread",
+      "category": ["Action", "Adventure"],
+      "iconUrl": "https://example.com/custom-icon.jpg",
+      "bannerUrl": "https://example.com/custom-banner.jpg"
+    }
+  }
+}

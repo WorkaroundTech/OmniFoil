@@ -2,10 +2,11 @@
  * Shop data building logic
  */
 
-import { BASES, GLOB_PATTERN, SUCCESS_MESSAGE, CACHE_TTL, REFERRER } from "../config";
+import { BASES, GLOB_PATTERN, SUCCESS_MESSAGE, CACHE_TTL, REFERRER, OVERRIDE_FILENAME } from "../config";
 import { encodePath } from "../lib/paths";
 import { identifyFile, parseGameName } from "../lib/identification";
 import { getTitleInfo } from "./titledb";
+import { getOverrideForFile } from "../lib/overrides";
 import type { AppType } from "../types";
 
 export interface ShopData {
@@ -31,6 +32,7 @@ export interface CatalogFileEntry {
   iconUrl: string | null;
   bannerUrl: string | null;
   baseTitleId: string | null;
+  hasTitleDbMatch: boolean;
 }
 
 interface ShopSectionsItem {
@@ -51,7 +53,7 @@ interface ShopSectionsItem {
 
 export interface ShopSectionsPayload {
   sections: Array<{
-    id: "new" | "recommended" | "updates" | "dlc" | "all";
+    id: "new" | "recommended" | "updates" | "dlc" | "all" | "other";
     title: string;
     items: ShopSectionsItem[];
     total?: number;
@@ -111,12 +113,15 @@ function toSectionsItem(entry: CatalogFileEntry): ShopSectionsItem {
 
 function buildSectionsPayload(entries: CatalogFileEntry[], limit: number): ShopSectionsPayload {
   const safeLimit = Math.max(1, Number.isFinite(limit) ? Math.floor(limit) : 50);
-  
-  // Separate entries by type (0=BASE, 1=DLC, 2=UPDATE)
-  const baseGames = entries.filter(e => e.appType === 0);
-  const updates = entries.filter(e => e.appType === 2);
-  const dlc = entries.filter(e => e.appType === 1);
-  
+
+  const matchedEntries = entries.filter((entry) => entry.hasTitleDbMatch);
+  const otherEntries = entries.filter((entry) => !entry.hasTitleDbMatch);
+
+  // Separate matched entries by type (0=BASE, 1=DLC, 2=UPDATE)
+  const baseGames = matchedEntries.filter((entry) => entry.appType === 0);
+  const updates = matchedEntries.filter((entry) => entry.appType === 2);
+  const dlc = matchedEntries.filter((entry) => entry.appType === 1);
+
   // Sort base games
   const sortedByNewest = [...baseGames].sort((a, b) => b.id - a.id);
   const sortedByName = [...baseGames].sort((a, b) => {
@@ -126,15 +131,16 @@ function buildSectionsPayload(entries: CatalogFileEntry[], limit: number): ShopS
   });
 
   // Apply limit to discovery sections (new/recommended) per AeroFoil spec
+  // Only include matched base games, unmatched entries go to "Other"
   const newItems = sortedByNewest.slice(0, safeLimit).map(toSectionsItem);
   const recommendedItems = [...newItems];
-  
+
   // Group updates by base title ID and get latest version per title
   // Following AeroFoil's pattern: group by the base game's title_id
   const updatesByBaseTitle = new Map<string, CatalogFileEntry>();
   for (const update of updates) {
     if (!update.baseTitleId) continue;
-    
+
     const existing = updatesByBaseTitle.get(update.baseTitleId);
     if (!existing || compareVersions(update.version, existing.version) > 0) {
       updatesByBaseTitle.set(update.baseTitleId, update);
@@ -143,17 +149,18 @@ function buildSectionsPayload(entries: CatalogFileEntry[], limit: number): ShopS
   const updateItems = Array.from(updatesByBaseTitle.values())
     .sort((a, b) => (a.titleName || a.name).localeCompare(b.titleName || b.name))
     .map(toSectionsItem);
-  
+
   // Group DLC by app_id (the DLC's own titleId)
-  // Following AeroFoil's pattern: group by the DLC's own app_id
-  // Multiple DLC for the same base game have different app_ids, so they won't be grouped together
-  // We keep all DLC and let the client handle grouping by base_title_id if needed
   const dlcItems = [...dlc]
     .sort((a, b) => (a.titleName || a.name).localeCompare(b.titleName || b.name))
     .map(toSectionsItem);
-  
+
   const allItems = sortedByName.map(toSectionsItem);
   const limitedAllItems = allItems.slice(0, safeLimit);
+
+  const otherItems = [...otherEntries]
+    .sort((a, b) => (a.titleName || a.name).localeCompare(b.titleName || b.name))
+    .map(toSectionsItem);
 
   return {
     sections: [
@@ -168,6 +175,7 @@ function buildSectionsPayload(entries: CatalogFileEntry[], limit: number): ShopS
         total: allItems.length,
         truncated: limitedAllItems.length < allItems.length,
       },
+      { id: "other", title: "Other", items: otherItems },
     ],
   };
 }
@@ -201,6 +209,12 @@ async function scanLibraryFiles(): Promise<{ files: ScannedFileEntry[]; director
           const virtualPath = `${alias}/${file}`;
           const absPath = `${dir}/${file}`;
           const filename = file.split("/").pop() || file;
+          
+          // Skip override files
+          if (filename === OVERRIDE_FILENAME) {
+            continue;
+          }
+          
           const size = Bun.file(absPath).size;
           fileEntries.push({ virtualPath, absPath, filename, size });
           fileCount++;
@@ -247,13 +261,38 @@ async function buildShopCatalog(limitForAllSection: number = 50): Promise<ShopCa
       // Identify file metadata from filename
       const identification = identifyFile(entry.filename);
       
+      // Check for manual override
+      const override = await getOverrideForFile(entry.filename, entry.absPath);
+      
+      // Apply override to identification if present
+      let titleId = identification.titleId;
+      let appType = identification.appType;
+      let version = identification.version;
+      let baseTitleId = identification.baseTitleId;
+      
+      if (override) {
+        // Override takes precedence over auto-identification
+        if (override.titleId) {
+          titleId = override.titleId;
+        }
+        if (override.appType !== undefined) {
+          appType = override.appType;
+        }
+        if (override.version) {
+          version = override.version;
+        }
+        if (override.baseTitleId) {
+          baseTitleId = override.baseTitleId;
+        }
+      }
+      
       // For CyberFoil compatibility with AeroFoil's API contract:
       // - app_id should be the file's own title_id (or a derived identifier for this file)
       // - For DLC: app_id = DLC's own title_id
       // - For updates: app_id = update's own title_id
       // - For base games: app_id = base game's title_id
       // We use the titleId directly as app_id for proper client-side linking
-      const appId = identification.titleId || buildAppIdFromNumber(id);
+      const appId = titleId || buildAppIdFromNumber(id);
       
       // Get display name from filename parsing
       const parsedName = parseGameName(entry.filename);
@@ -265,17 +304,35 @@ async function buildShopCatalog(limitForAllSection: number = 50): Promise<ShopCa
       let category: string[] = [];
       let iconUrl: string | null = null;
       let bannerUrl: string | null = null;
+      let hasTitleDbMatch = false;
       
       // Use base title ID if available (for updates/DLC), otherwise use the file's title ID (for base games)
-      const titleIdForMetadata = identification.baseTitleId || identification.titleId;
+      const titleIdForMetadata = baseTitleId || titleId;
       
       if (titleIdForMetadata) {
         const titleInfo = await getTitleInfo(titleIdForMetadata);
         if (titleInfo) {
+          hasTitleDbMatch = true;
           titleName = titleInfo.name;
           category = titleInfo.category || [];
           iconUrl = titleInfo.iconUrl || null;
           bannerUrl = titleInfo.bannerUrl || null;
+        }
+      }
+      
+      // Apply override metadata (takes precedence over TitleDB)
+      if (override) {
+        if (override.titleName) {
+          titleName = override.titleName;
+        }
+        if (override.category) {
+          category = override.category;
+        }
+        if (override.iconUrl !== undefined) {
+          iconUrl = override.iconUrl;
+        }
+        if (override.bannerUrl !== undefined) {
+          bannerUrl = override.bannerUrl;
         }
       }
       
@@ -287,14 +344,15 @@ async function buildShopCatalog(limitForAllSection: number = 50): Promise<ShopCa
         size: entry.size,
         name: parsedName,
         appId,
-        titleId: identification.titleId,
+        titleId,
         titleName,
-        appType: identification.appType,
-        version: identification.version,
+        appType,
+        version,
         category,
         iconUrl,
         bannerUrl,
-        baseTitleId: identification.baseTitleId || null,
+        baseTitleId: baseTitleId || null,
+        hasTitleDbMatch,
       };
     })
   );
