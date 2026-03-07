@@ -1,5 +1,5 @@
 # OmniFoil
-![OmniFoil logo](bolt-logo-transparent-bg.png)
+![OmniFoil logo](omnifoil-logo.png)
 
 **OmniFoil** is a lightning-fast, zero-dependency, and lightweight backend server to serve your personal game backup library to Tinfoil and CyberFoil clients on Nintendo Switch.
 
