@@ -719,6 +719,28 @@ entry.category = titleInfo?.category?.join(', ') || ''
 entry.iconUrl = `/api/shop/icon/${titleId}`
 ```
 
+### Duplicate Title Handling
+
+TitleDB may contain multiple entries with the same title ID but different names (e.g., original and "Nintendo Switch™ 2 Edition" variants). OmniFoil automatically filters these duplicates:
+
+**Behavior:**
+- When multiple entries share the same title ID, prefer the original entry
+- Entries matching the pattern `/Nintendo\s+Switch[™\s]*\s*2\s+Edition/i` are deprioritized
+- This ensures the "new" section in CyberFoil shop displays original game titles
+- Switch 2 Edition entries are skipped during TitleDB parsing
+
+**Example:**
+```typescript
+// TitleDB contains both:
+// - "010004B01C3E8000": "Isekai Rondo"
+// - "010004B01C3E8000": "Isekai Rondo - Nintendo Switch 2 Edition"
+
+// getTitleInfo() will return:
+{ id: "010004B01C3E8000", name: "Isekai Rondo" }  // Original preferred
+```
+
+**Rationale:** Since OmniFoil targets the original Nintendo Switch platform, displaying "Switch 2 Edition" variants would be misleading to users.
+
 ### Configuration
 
 Controlled by environment variables:

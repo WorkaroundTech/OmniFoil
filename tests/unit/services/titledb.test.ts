@@ -168,4 +168,35 @@ describe("services/titledb", () => {
       }
     });
   });
+
+  describe("Switch 2 Edition filtering", () => {
+    it("should prefer original entries over Nintendo Switch 2 Edition variants", async () => {
+      // Known title IDs that have both original and Switch 2 Edition entries
+      const testCases = [
+        { titleId: "010004B01C3E8000", expectedName: "Isekai Rondo" }, 
+        { titleId: "010005500DFC2000", expectedName: "Sail Forth" },
+        { titleId: "010009102494A000", expectedName: "Cast n Chill" },
+      ];
+
+      for (const { titleId, expectedName } of testCases) {
+        const info = await getTitleInfo(titleId);
+        
+        if (info) {
+          // Should not have "Nintendo Switch 2 Edition" in the name
+          expect(info.name).not.toMatch(/Nintendo\s+Switch[™\s]*\s*2\s+Edition/i);
+          // Should match the original name
+          expect(info.name).toBe(expectedName);
+        }
+      }
+    });
+    
+    it("should not have any Switch 2 Edition names in search results for popular titles", async () => {
+      const searchResults = await searchTitles("", 100);
+      
+      for (const title of searchResults) {
+        // No title should have "Nintendo Switch 2 Edition" in the name
+        expect(title.name).not.toMatch(/Nintendo\s+Switch[™\s]*\s*2\s+Edition/i);
+      }
+    });
+  });
 });

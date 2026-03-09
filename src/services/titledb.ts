@@ -197,6 +197,20 @@ async function loadTitleDBFile(filename: string, autoUpdate: boolean = true): Pr
 /**
  * Parse TitleDB titles JSON into our internal format
  */
+/**
+ * Check if a title name indicates a Nintendo Switch 2 Edition
+ * These should be deprioritized since we're not providing Switch 2 games
+ */
+function isSwitch2Edition(name: string): boolean {
+  if (!name) return false;
+  // Match patterns like:
+  // - "Nintendo Switch 2 Edition"
+  // - "Nintendo Switch™ 2 Edition"
+  // - "– Nintendo Switch 2 Edition"
+  // - variations with different punctuation
+  return /Nintendo\s+Switch[™\s]*\s*2\s+Edition/i.test(name);
+}
+
 function parseTitlesData(data: any): Map<string, TitleDBEntry> {
   const titles = new Map<string, TitleDBEntry>();
   
@@ -231,6 +245,21 @@ function parseTitlesData(data: any): Map<string, TitleDBEntry> {
       region: entry.region,
       intro: entry.intro,
     };
+    
+    // Handle duplicate title IDs: prefer non-Switch 2 Edition entries
+    const existingEntry = titles.get(titleEntry.id);
+    if (existingEntry) {
+      const newIsSwitch2 = isSwitch2Edition(titleEntry.name);
+      const existingIsSwitch2 = isSwitch2Edition(existingEntry.name);
+      
+      // If new entry is Switch 2 Edition but existing isn't, keep existing
+      if (newIsSwitch2 && !existingIsSwitch2) {
+        continue;
+      }
+      
+      // If existing is Switch 2 Edition but new isn't, replace with new
+      // Otherwise, use new entry (default overwrite behavior)
+    }
     
     titles.set(titleEntry.id, titleEntry);
   }
