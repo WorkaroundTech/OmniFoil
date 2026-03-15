@@ -246,6 +246,7 @@ df -h /path/to/games
 **Solutions:**
 ```bash
 # 1. Verify credentials are set
+echo $AUTH_CREDENTIALS
 echo $AUTH_USER
 echo $AUTH_PASS
 
@@ -269,9 +270,13 @@ echo -n "username:password" | base64
    http://username:password@192.168.1.100:3000/shop.json
    ```
 
-2. **Use AUTH_CREDENTIALS format:**
+2. **Use AUTH_CREDENTIALS format (single or multiple users):**
    ```bash
+   # Single user
    AUTH_CREDENTIALS=username:password
+
+   # Multiple users
+   AUTH_CREDENTIALS=alice:pass1,bob:pass2
    ```
 
 3. **Test authentication with curl:**
@@ -279,7 +284,7 @@ echo -n "username:password" | base64
    curl -u "user:pass" http://server:3000/shop.json
    ```
 
-4. **Special characters:** Avoid `:` and `@` in passwords, or URL-encode them
+4. **Special characters:** Avoid `@` in passwords, or URL-encode them. Colons (`:`) in passwords are supported — only the first colon per entry is the delimiter.
 
 #### Issue: Authentication works in browser but not in Tinfoil
 
@@ -288,12 +293,11 @@ echo -n "username:password" | base64
 **Solution:**
 ```bash
 # 1. Try disabling auth for testing
-# Comment out AUTH_USER and AUTH_PASS
+# Remove AUTH_CREDENTIALS (and AUTH_USER/AUTH_PASS if set)
 # Restart server
 
 # 2. Use simpler credentials (no special chars)
-AUTH_USER=tinfoil
-AUTH_PASS=password123
+AUTH_CREDENTIALS=tinfoil:password123
 
 # 3. Verify Tinfoil URL format
 # In Tinfoil: Protocol → Add → Enter URL with auth

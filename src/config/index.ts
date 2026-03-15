@@ -20,22 +20,53 @@ export function buildBaseAliases(dirs: string[]): BaseDir[] {
 
 export const BASES = buildBaseAliases(BASE_DIRS);
 
-// Basic Auth configuration: either AUTH_USER + AUTH_PASS or AUTH_CREDENTIALS="user:pass"
+// Basic Auth configuration:
+//   Single user: AUTH_USER + AUTH_PASS  or  AUTH_CREDENTIALS="user:pass"
+//   Multiple users: AUTH_CREDENTIALS="user1:pass1,user2:pass2"
 export const AUTH_USER = process.env.AUTH_USER;
 export const AUTH_PASS = process.env.AUTH_PASS;
 export const AUTH_CREDENTIALS = process.env.AUTH_CREDENTIALS;
 
-export function getAuthPair(): { user: string; pass: string } | null {
-  if (AUTH_USER && AUTH_PASS) {
-    return { user: AUTH_USER, pass: AUTH_PASS };
+import { type AuthUsers } from "../lib/auth";
+
+function parseCredentialSegment(segment: string): { user: string; pass: string } | null {
+  const idx = segment.indexOf(":");
+  if (idx === -1) return null;
+  const user = segment.slice(0, idx);
+  const pass = segment.slice(idx + 1);
+  if (user.length === 0 || pass.length === 0) return null;
+  return { user, pass };
+}
+
+/**
+ * Build the list of valid auth users from explicit values.
+ * Exported for testability; prefer calling `getAuthUsers()` in application code.
+ */
+export function buildAuthUsers(
+  authUser: string | undefined,
+  authPass: string | undefined,
+  authCredentials: string | undefined,
+): AuthUsers {
+  const users: AuthUsers = [];
+
+  // Legacy single-user: AUTH_USER + AUTH_PASS
+  if (authUser && authPass) {
+    users.push({ user: authUser, pass: authPass });
   }
-  if (AUTH_CREDENTIALS && AUTH_CREDENTIALS.includes(":")) {
-    const idx = AUTH_CREDENTIALS.indexOf(":");
-    const user = AUTH_CREDENTIALS.slice(0, idx);
-    const pass = AUTH_CREDENTIALS.slice(idx + 1);
-    if (user.length > 0 && pass.length > 0) return { user, pass };
+
+  // AUTH_CREDENTIALS: comma-separated "user:pass" segments
+  if (authCredentials) {
+    for (const segment of authCredentials.split(",")) {
+      const parsed = parseCredentialSegment(segment.trim());
+      if (parsed) users.push(parsed);
+    }
   }
-  return null;
+
+  return users;
+}
+
+export function getAuthUsers(): AuthUsers {
+  return buildAuthUsers(AUTH_USER, AUTH_PASS, AUTH_CREDENTIALS);
 }
 
 // Cache configuration: TTL in seconds for shop data cache (default 5 minutes)

@@ -3,7 +3,7 @@
  * Configures server, middleware, and routing
  */
 
-import { PORT, BASES, getAuthPair, CACHE_TTL, SUCCESS_MESSAGE, LOG_FORMAT } from "./config";
+import { PORT, BASES, getAuthUsers, CACHE_TTL, SUCCESS_MESSAGE, LOG_FORMAT } from "./config";
 import { type RequestContext } from "./types";
 import { authorize, timing, logging, errorHandler, compose } from "./middleware";
 import { router } from "./routes";
@@ -19,9 +19,9 @@ export async function setupServer() {
   console.log(asciiHeader);
   console.log(`> Scanning directories:`, BASES.map((b) => `${b.alias} -> ${b.path}`));
 
-  const authPair = getAuthPair();
-  if (authPair) {
-    console.log(`> Authentication enabled (user: ${authPair.user})`);
+  const authUsers = getAuthUsers();
+  if (authUsers.length > 0) {
+    console.log(`> Authentication enabled (${authUsers.length} user(s): ${authUsers.map(u => u.user).join(", ")})`);
   } else {
     console.log(`> Authentication disabled`);
   }
@@ -50,7 +50,7 @@ export async function setupServer() {
    */
   const middleware = compose(
     [
-      authorize(authPair),
+      authorize(authUsers),
       timing(),
       logging(),
     ],

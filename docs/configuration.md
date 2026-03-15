@@ -33,9 +33,9 @@ All configuration is done through environment variables. No configuration files 
 | `CACHE_TTL` | number | `300` | No | Cache TTL in seconds (0 to disable) |
 | `SUCCESS_MESSAGE` | string | - | No | Custom message in shop response |
 | `LOG_FORMAT` | string | `dev` | No | Log format: `tiny`, `short`, `dev`, `common`, `combined` |
-| `AUTH_USER` | string | - | No | HTTP Basic Auth username |
-| `AUTH_PASS` | string | - | No | HTTP Basic Auth password |
-| `AUTH_CREDENTIALS` | string | - | No | HTTP Basic Auth as `user:pass` (alternative) |
+| `AUTH_USER` | string | - | No | HTTP Basic Auth username (single-user shorthand) |
+| `AUTH_PASS` | string | - | No | HTTP Basic Auth password (single-user shorthand) |
+| `AUTH_CREDENTIALS` | string | - | No | Comma-separated `user:pass` pairs; supports multiple users |
 | `REFERRER` | string | - | No | Host verification URL for shop security |
 | `TITLEDB_ENABLED` | boolean | `true` | No | Enable TitleDB integration for metadata |
 | `TITLEDB_REGION` | string | `US` | No | TitleDB region: US, JP, BR, etc. |
@@ -257,9 +257,23 @@ SUCCESS_MESSAGE="🎮 Happy gaming!"
 
 ### Authentication
 
-Authentication is optional. If configured, all endpoints require HTTP Basic Authentication.
+Authentication is optional. If configured, all endpoints require HTTP Basic Authentication. Multiple users are supported — any valid user can connect.
 
-#### Option 1: Separate Variables
+#### Option 1: Multiple Users via `AUTH_CREDENTIALS`
+
+**Variable:** `AUTH_CREDENTIALS` — comma-separated `user:pass` pairs
+
+```bash
+# Single user
+AUTH_CREDENTIALS=tinfoil:supersecret
+
+# Multiple users
+AUTH_CREDENTIALS=alice:pass1,bob:pass2,carol:pass3
+```
+
+Passwords may contain `:` — only the **first** colon in each segment is used as the delimiter.
+
+#### Option 2: Single User via Separate Variables
 
 **Variables:** `AUTH_USER` and `AUTH_PASS`
 
@@ -268,17 +282,18 @@ AUTH_USER=tinfoil
 AUTH_PASS=supersecret
 ```
 
-#### Option 2: Combined Variable
+#### Combining Both
 
-**Variable:** `AUTH_CREDENTIALS`
+Both options can be set at the same time. `AUTH_USER`/`AUTH_PASS` adds a user on top of whatever is listed in `AUTH_CREDENTIALS`:
 
 ```bash
-AUTH_CREDENTIALS=tinfoil:supersecret
+AUTH_USER=admin
+AUTH_PASS=adminpass
+AUTH_CREDENTIALS=alice:pass1,bob:pass2
+# Result: three valid users — admin, alice, bob
 ```
 
-**Precedence:**
-- If both options are set, `AUTH_USER` + `AUTH_PASS` take precedence
-- If neither option is set, authentication is **disabled**
+If no credentials are configured at all, authentication is **disabled**.
 
 **Security Notes:**
 - Credentials are sent in Base64 (not encrypted)
@@ -290,13 +305,12 @@ AUTH_CREDENTIALS=tinfoil:supersecret
 ```yaml
 # docker-compose.yml
 environment:
-  - AUTH_USER=myuser
-  - AUTH_PASS=${AUTH_PASSWORD}  # From .env file
+  - AUTH_CREDENTIALS=${AUTH_CREDENTIALS}  # e.g. alice:pass1,bob:pass2
 ```
 
 ```bash
 # .env file (not committed to git)
-AUTH_PASSWORD=very_secure_password_123
+AUTH_CREDENTIALS=alice:pass1,bob:pass2
 ```
 
 ---

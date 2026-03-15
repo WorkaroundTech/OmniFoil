@@ -1,8 +1,9 @@
 import type { } from "bun";
 
-export type AuthPair = { user: string; pass: string } | null;
+export type AuthUser = { user: string; pass: string };
+export type AuthUsers = AuthUser[];
 
-function parseBasicAuthHeader(header: string | null): { user: string; pass: string } | null {
+function parseBasicAuthHeader(header: string | null): AuthUser | null {
   if (!header) return null;
   const [scheme, encoded] = header.split(" ", 2);
   if (!scheme || scheme.toLowerCase() !== "basic") return null;
@@ -19,10 +20,11 @@ function parseBasicAuthHeader(header: string | null): { user: string; pass: stri
   }
 }
 
-export function isAuthorized(req: Request, pair: AuthPair): boolean {
-  if (!pair) return true; // auth disabled when not configured
+export function isAuthorized(req: Request, users: AuthUsers): boolean {
+  if (users.length === 0) return true; // auth disabled when no users configured
   const provided = parseBasicAuthHeader(req.headers.get("authorization"));
-  return !!provided && provided.user === pair.user && provided.pass === pair.pass;
+  if (!provided) return false;
+  return users.some(u => u.user === provided.user && u.pass === provided.pass);
 }
 
 export function respondUnauthorized(): Response {

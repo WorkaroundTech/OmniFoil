@@ -11,7 +11,7 @@ describe("middleware", () => {
     };
 
     it("should allow request when no auth is configured", async () => {
-      const middleware = authorize(null);
+      const middleware = authorize([]);
       const ctx: RequestContext = {
         remoteAddress: "127.0.0.1",
         userAgent: "test",
@@ -29,7 +29,7 @@ describe("middleware", () => {
     });
 
     it("should throw ServiceError when auth is required but missing", async () => {
-      const middleware = authorize({ user: "admin", pass: "secret" });
+      const middleware = authorize([{ user: "admin", pass: "secret" }]);
       const ctx: RequestContext = {
         remoteAddress: "127.0.0.1",
         userAgent: "test",
@@ -50,7 +50,7 @@ describe("middleware", () => {
     });
 
     it("should allow request with valid auth", async () => {
-      const middleware = authorize({ user: "admin", pass: "secret" });
+      const middleware = authorize([{ user: "admin", pass: "secret" }]);
       const ctx: RequestContext = {
         remoteAddress: "127.0.0.1",
         userAgent: "test",
@@ -66,6 +66,49 @@ describe("middleware", () => {
       const authHeader = "Basic " + btoa("admin:secret");
       await middleware(mockReq(authHeader), ctx, handler);
       expect(handlerCalled).toBe(true);
+    });
+
+    it("should allow any valid user in a multi-user list", async () => {
+      const users = [
+        { user: "alice", pass: "pass1" },
+        { user: "bob", pass: "pass2" },
+      ];
+      const middleware = authorize(users);
+      const ctx: RequestContext = {
+        remoteAddress: "127.0.0.1",
+        userAgent: "test",
+        startTime: Date.now(),
+      };
+
+      for (const { user, pass } of users) {
+        let handlerCalled = false;
+        const handler = async () => { handlerCalled = true; return new Response("OK"); };
+        const authHeader = "Basic " + btoa(`${user}:${pass}`);
+        await middleware(mockReq(authHeader), ctx, handler);
+        expect(handlerCalled).toBe(true);
+      }
+    });
+
+    it("should reject an unknown user even when a multi-user list is configured", async () => {
+      const middleware = authorize([
+        { user: "alice", pass: "pass1" },
+        { user: "bob", pass: "pass2" },
+      ]);
+      const ctx: RequestContext = {
+        remoteAddress: "127.0.0.1",
+        userAgent: "test",
+        startTime: Date.now(),
+      };
+
+      let thrownError: ServiceError | null = null;
+      const authHeader = "Basic " + btoa("charlie:wrong");
+      try {
+        await middleware(mockReq(authHeader), ctx, async () => new Response("OK"));
+      } catch (error) {
+        thrownError = error as ServiceError;
+      }
+      expect(thrownError).not.toBe(null);
+      expect(thrownError?.statusCode).toBe(401);
     });
   });
 

@@ -104,24 +104,27 @@ Copy `.env.example` to `.env` and configure the following variables:
 
 ### Authentication (Optional)
 
-You can protect all endpoints with HTTP Basic Auth by setting either `AUTH_USER` + `AUTH_PASS` or a single `AUTH_CREDENTIALS` value (`user:pass`). If none are set, authentication is disabled.
+You can protect all endpoints with HTTP Basic Auth. Multiple users are supported. If no credentials are configured, authentication is disabled.
 
 - Variables:
-  - `AUTH_USER` and `AUTH_PASS`: username/password pair
-  - `AUTH_CREDENTIALS`: combined `user:pass` string
-- Precedence: `AUTH_USER`/`AUTH_PASS` take priority over `AUTH_CREDENTIALS` when both are present.
+  - `AUTH_CREDENTIALS`: one or more `user:pass` pairs, comma-separated — supports multiple users
+  - `AUTH_USER` + `AUTH_PASS`: legacy single-user shorthand (still fully supported)
+- Both can be combined: `AUTH_USER`/`AUTH_PASS` adds a user on top of any entries in `AUTH_CREDENTIALS`.
 
 Examples:
 
 ```bash
-# Local (Bun)
+# Single user (Bun)
 AUTH_CREDENTIALS=admin:secret bun run src/server.ts
+
+# Multiple users
+AUTH_CREDENTIALS=alice:pass1,bob:pass2 bun run src/server.ts
 
 # Test without auth header (should be 401)
 curl -i http://localhost:3000/
 
 # Test with auth header (should be 200)
-curl -i -H "Authorization: Basic $(printf 'admin:secret' | base64)" http://localhost:3000/
+curl -i -H "Authorization: Basic $(printf 'alice:pass1' | base64)" http://localhost:3000/
 ```
 
 Docker Compose:

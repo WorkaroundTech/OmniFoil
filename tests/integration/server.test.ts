@@ -6,7 +6,7 @@ import { type RequestContext, ServiceError } from "../../src/types";
 describe("server integration", () => {
   describe("full middleware chain with router", () => {
     it("should process request through entire middleware chain", async () => {
-      const authMiddleware = authorize(null);
+      const authMiddleware = authorize([]);
       const timingMiddleware = timing();
       const loggingMiddleware = logging();
 
@@ -33,7 +33,7 @@ describe("server integration", () => {
     });
 
     it("should handle authorization errors in middleware chain", async () => {
-      const authMiddleware = authorize({ user: "admin", pass: "secret" });
+      const authMiddleware = authorize([{ user: "admin", pass: "secret" }]);
       const timingMiddleware = timing();
       const loggingMiddleware = logging();
 
@@ -57,7 +57,7 @@ describe("server integration", () => {
     });
 
     it("should handle errors thrown by route handlers", async () => {
-      const authMiddleware = authorize(null);
+      const authMiddleware = authorize([]);
       const timingMiddleware = timing();
       const loggingMiddleware = logging();
 
@@ -87,7 +87,7 @@ describe("server integration", () => {
     it("should maintain request context across middleware", async () => {
       let contextCaptured: RequestContext | null = null;
 
-      const authMiddleware = authorize(null);
+      const authMiddleware = authorize([]);
       const timingMiddleware = timing();
       const loggingMiddleware = logging();
 
