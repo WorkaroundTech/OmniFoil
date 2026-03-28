@@ -66,6 +66,25 @@ describe("middleware", () => {
       const authHeader = "Basic " + btoa("admin:secret");
       await middleware(mockReq(authHeader), ctx, handler);
       expect(handlerCalled).toBe(true);
+      expect((ctx.data as any)?.authUser).toBe("admin");
+    });
+
+    it("should capture attempted username for invalid auth", async () => {
+      const middleware = authorize([{ user: "admin", pass: "secret" }]);
+      const ctx: RequestContext = {
+        remoteAddress: "127.0.0.1",
+        userAgent: "test",
+        startTime: Date.now(),
+      };
+
+      const authHeader = "Basic " + btoa("intruder:wrong");
+      try {
+        await middleware(mockReq(authHeader), ctx, async () => new Response("OK"));
+      } catch {
+        // expected
+      }
+
+      expect((ctx.data as any)?.authAttemptUser).toBe("intruder");
     });
 
     it("should allow any valid user in a multi-user list", async () => {

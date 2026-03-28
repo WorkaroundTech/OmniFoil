@@ -18,6 +18,7 @@ export const logging = (): Middleware => {
     const logData: any = {
       remoteAddr: ctx.remoteAddress,
       userAgent: ctx.userAgent,
+      contextData: ctx.data,
     };
 
     if (contentLength) {

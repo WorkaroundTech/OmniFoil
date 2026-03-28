@@ -78,8 +78,8 @@ export const SUCCESS_MESSAGE = process.env.SUCCESS_MESSAGE || "";
 // Referrer configuration: Optional host verification for strict shop security
 export const REFERRER = process.env.REFERRER || "";
 
-// Logging configuration: Morgan-style log format (tiny, short, dev, common, combined)
-export const LOG_FORMAT = (process.env.LOG_FORMAT || "dev") as "tiny" | "short" | "dev" | "common" | "combined";
+// Logging configuration: Morgan-style log format (tiny, short, dev, debug, common, combined)
+export const LOG_FORMAT = (process.env.LOG_FORMAT || "dev") as "tiny" | "short" | "dev" | "debug" | "common" | "combined";
 
 // TitleDB configuration
 export const TITLEDB_ENABLED = process.env.TITLEDB_ENABLED !== "false"; // Default enabled

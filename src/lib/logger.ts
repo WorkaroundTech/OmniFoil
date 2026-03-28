@@ -1,4 +1,4 @@
-export type LogFormat = "tiny" | "short" | "dev" | "common" | "combined";
+export type LogFormat = "tiny" | "short" | "dev" | "debug" | "common" | "combined";
 
 interface LogContext {
   method: string;
@@ -8,6 +8,7 @@ interface LogContext {
   responseTime: number;
   userAgent?: string;
   remoteAddr?: string;
+  contextData?: Record<string, unknown>;
   timestamp?: string;
   statusColor?: string;
 }
@@ -73,6 +74,44 @@ function createDevFormat(ctx: LogContext): string {
   return `[${timestamp}] ${remoteAddr} - ${colorCode}${ctx.method} ${ctx.path} ${ctx.status}${resetCode} ${contentLength} - ${formatTime(ctx.responseTime)}`;
 }
 
+function formatContextValue(value: unknown): string {
+  if (value === null) return "null";
+  if (value === undefined) return "undefined";
+
+  if (typeof value === "string") {
+    // Quote values that contain whitespace so they remain visually grouped.
+    return /\s/.test(value) ? JSON.stringify(value) : value;
+  }
+
+  if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
+    return String(value);
+  }
+
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function formatContextPairs(data?: Record<string, unknown>): string {
+  if (!data || Object.keys(data).length === 0) return "-";
+
+  return Object.entries(data)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, value]) => `${key}=${formatContextValue(value)}`)
+    .join(" ");
+}
+
+function createDebugFormat(ctx: LogContext): string {
+  const base = createDevFormat(ctx);
+  return `${base} | ctx: ${formatContextPairs(ctx.contextData)}`;
+}
+
 function createCommonFormat(ctx: LogContext): string {
   const timestamp = ctx.timestamp || formatTimestamp();
   const remoteAddr = ctx.remoteAddr || "-";
@@ -96,6 +135,8 @@ export function formatLog(format: LogFormat, ctx: LogContext): string {
       return createShortFormat(ctx);
     case "dev":
       return createDevFormat(ctx);
+    case "debug":
+      return createDebugFormat(ctx);
     case "common":
       return createCommonFormat(ctx);
     case "combined":
@@ -115,6 +156,7 @@ export function logRequest(
     contentLength?: number;
     userAgent?: string;
     remoteAddr?: string;
+    contextData?: Record<string, unknown>;
   }
 ): void {
   const ctx: LogContext = {
@@ -125,6 +167,7 @@ export function logRequest(
     responseTime,
     userAgent: options?.userAgent,
     remoteAddr: options?.remoteAddr,
+    contextData: options?.contextData,
     timestamp: formatTimestamp(),
   };
 

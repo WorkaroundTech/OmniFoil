@@ -20,6 +20,7 @@ export const errorHandler = (handler: Handler): Handler => {
         logRequest(LOG_FORMAT, req.method, url.pathname, error.statusCode, elapsed, {
           remoteAddr: ctx.remoteAddress,
           userAgent: ctx.userAgent,
+          contextData: ctx.data,
         });
 
         if (error.statusCode === 401) {
@@ -37,6 +38,7 @@ export const errorHandler = (handler: Handler): Handler => {
       logRequest(LOG_FORMAT, req.method, url.pathname, 500, elapsed, {
         remoteAddr: ctx.remoteAddress,
         userAgent: ctx.userAgent,
+        contextData: ctx.data,
       });
 
       return new Response("Internal server error", { status: 500 });

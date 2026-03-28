@@ -69,7 +69,7 @@ Copy `.env.example` to `.env` and configure the following variables:
 | `CACHE_TTL` | Cache duration (in seconds) for shop data. Reduces expensive directory scans on network mounts. Set to `0` to disable caching. | `300` |
 | `SUCCESS_MESSAGE` | Optional message displayed in Tinfoil/CyberFoil when the shop is loaded. Great for MOTD or custom greetings. | (empty) |
 | `REFERRER` | Optional host URL for client-side host verification. Only included in responses when configured. | (empty) |
-| `LOG_FORMAT` | Morgan-style log format: `tiny`, `short`, `dev`, `common`, or `combined`. | `dev` |
+| `LOG_FORMAT` | Morgan-style log format: `tiny`, `short`, `dev`, `debug`, `common`, or `combined`. `debug` appends all `RequestContext.data` key/value pairs as `ctx:` (including authenticated user fields like `authUser`). | `dev` |
 
 ### TitleDB & Metadata Enrichment
 

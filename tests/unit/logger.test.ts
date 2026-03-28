@@ -22,11 +22,32 @@ describe("logger formats", () => {
   });
 
   it("should include status code in all formats", () => {
-    const formats: LogFormat[] = ["tiny", "short", "dev", "common", "combined"];
+    const formats: LogFormat[] = ["tiny", "short", "dev", "debug", "common", "combined"];
     formats.forEach((fmt) => {
       const result = formatLog(fmt, testContext as any);
       expect(result).toContain("200");
     });
+  });
+
+  it("should include context data pairs in debug format", () => {
+    const result = formatLog("debug" as LogFormat, {
+      ...testContext,
+      contextData: {
+        zeta: true,
+        section: "Featured Games",
+        count: 12,
+      },
+    } as any);
+
+    expect(result).toContain("| ctx:");
+    expect(result).toContain("count=12");
+    expect(result).toContain("section=\"Featured Games\"");
+    expect(result).toContain("zeta=true");
+  });
+
+  it("should show placeholder when debug format has no context data", () => {
+    const result = formatLog("debug" as LogFormat, testContext as any);
+    expect(result).toContain("| ctx: -");
   });
 
   it("should format file sizes correctly", () => {

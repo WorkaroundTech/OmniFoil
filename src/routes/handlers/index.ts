@@ -36,7 +36,7 @@ function getClientType(req: Request): string {
 }
 
 function debugLogHeaders(req: Request, ctx: RequestContext): void {
-  if (LOG_FORMAT !== "dev") return;
+  if (LOG_FORMAT !== "dev" && LOG_FORMAT !== "debug") return;
   
   console.log(`\n[DEBUG] Request Headers:`);
   const headerMap = new Map<string, string>();

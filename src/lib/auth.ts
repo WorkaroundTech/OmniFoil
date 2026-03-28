@@ -20,6 +20,10 @@ function parseBasicAuthHeader(header: string | null): AuthUser | null {
   }
 }
 
+export function getBasicAuthUsername(req: Request): string | null {
+  return parseBasicAuthHeader(req.headers.get("authorization"))?.user || null;
+}
+
 export function isAuthorized(req: Request, users: AuthUsers): boolean {
   if (users.length === 0) return true; // auth disabled when no users configured
   const provided = parseBasicAuthHeader(req.headers.get("authorization"));
