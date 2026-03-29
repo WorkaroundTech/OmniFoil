@@ -1,6 +1,10 @@
 import { describe, it, expect } from "bun:test";
 import { formatLog, type LogFormat } from "../../src/lib/logger";
 
+function stripAnsi(value: string): string {
+  return value.replace(/\u001b\[[0-9;]*m/g, "");
+}
+
 describe("logger formats", () => {
   const testContext = {
     method: "GET",
@@ -29,7 +33,7 @@ describe("logger formats", () => {
     });
   });
 
-  it("should include context data pairs in debug format", () => {
+  it("should include pretty context JSON in debug format", () => {
     const result = formatLog("debug" as LogFormat, {
       ...testContext,
       contextData: {
@@ -38,16 +42,18 @@ describe("logger formats", () => {
         count: 12,
       },
     } as any);
+    const plainResult = stripAnsi(result);
 
-    expect(result).toContain("| ctx:");
-    expect(result).toContain("count=12");
-    expect(result).toContain("section=\"Featured Games\"");
-    expect(result).toContain("zeta=true");
+    expect(plainResult).toContain("\nctx:\n");
+    expect(plainResult).toContain("\"count\": 12");
+    expect(plainResult).toContain("\"section\": \"Featured Games\"");
+    expect(plainResult).toContain("\"zeta\": true");
   });
 
   it("should show placeholder when debug format has no context data", () => {
     const result = formatLog("debug" as LogFormat, testContext as any);
-    expect(result).toContain("| ctx: -");
+    const plainResult = stripAnsi(result);
+    expect(plainResult).toContain("ctx: -");
   });
 
   it("should format file sizes correctly", () => {

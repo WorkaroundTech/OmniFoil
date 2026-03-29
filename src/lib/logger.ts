@@ -34,6 +34,9 @@ function formatTime(ms: number): string {
 }
 
 const RESET = "\x1b[0m";
+const DIM = "\x1b[2m";
+const CYAN = "\x1b[36m";
+const YELLOW = "\x1b[33m";
 
 function formatTimestamp(date: Date = new Date()): string {
   const offset = -date.getTimezoneOffset();
@@ -74,42 +77,53 @@ function createDevFormat(ctx: LogContext): string {
   return `[${timestamp}] ${remoteAddr} - ${colorCode}${ctx.method} ${ctx.path} ${ctx.status}${resetCode} ${contentLength} - ${formatTime(ctx.responseTime)}`;
 }
 
-function formatContextValue(value: unknown): string {
-  if (value === null) return "null";
-  if (value === undefined) return "undefined";
+function normalizeContextValue(value: unknown): unknown {
+  if (value === undefined) return "[undefined]";
+  if (typeof value === "bigint") return value.toString();
+  if (value instanceof Date) return value.toISOString();
 
-  if (typeof value === "string") {
-    // Quote values that contain whitespace so they remain visually grouped.
-    return /\s/.test(value) ? JSON.stringify(value) : value;
+  if (Array.isArray(value)) {
+    return value.map(normalizeContextValue);
   }
 
-  if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
-    return String(value);
+  if (value && typeof value === "object") {
+    const sortedEntries = Object.entries(value as Record<string, unknown>)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, nested]) => [key, normalizeContextValue(nested)] as const);
+    return Object.fromEntries(sortedEntries);
   }
 
-  if (value instanceof Date) {
-    return value.toISOString();
-  }
-
-  try {
-    return JSON.stringify(value);
-  } catch {
-    return String(value);
-  }
+  return value;
 }
 
-function formatContextPairs(data?: Record<string, unknown>): string {
-  if (!data || Object.keys(data).length === 0) return "-";
+function colorizeJsonKeys(prettyJson: string): string {
+  return prettyJson.replace(/^(\s*)("[^"]+"):/gm, `$1${YELLOW}$2${RESET}:`);
+}
 
-  return Object.entries(data)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([key, value]) => `${key}=${formatContextValue(value)}`)
-    .join(" ");
+function formatContextBlock(data?: Record<string, unknown>): string {
+  if (!data || Object.keys(data).length === 0) {
+    return `\n${CYAN}ctx${RESET}: ${DIM}-${RESET}`;
+  }
+
+  let pretty = "{}";
+  try {
+    const normalized = normalizeContextValue(data);
+    pretty = JSON.stringify(normalized, null, 2) || "{}";
+  } catch {
+    pretty = JSON.stringify({ error: "Unable to stringify context data" }, null, 2) || "{}";
+  }
+
+  const coloredJson = colorizeJsonKeys(pretty)
+    .split("\n")
+    .map((line) => `${DIM}  ${line}${RESET}`)
+    .join("\n");
+
+  return `\n${CYAN}ctx${RESET}:\n${coloredJson}`;
 }
 
 function createDebugFormat(ctx: LogContext): string {
   const base = createDevFormat(ctx);
-  return `${base} | ctx: ${formatContextPairs(ctx.contextData)}`;
+  return `${base}${formatContextBlock(ctx.contextData)}`;
 }
 
 function createCommonFormat(ctx: LogContext): string {
