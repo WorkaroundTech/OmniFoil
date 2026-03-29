@@ -9,6 +9,13 @@ import { methodValidator } from "../../middleware";
 import { buildShopSections, getCatalogEntryById } from "../../services/shop";
 import { parseRange, isSingleRange, getContentRangeHeader } from "../../lib/range";
 
+function setContextData(ctx: RequestContext, data: Record<string, unknown>): void {
+  ctx.data = {
+    ...(typeof ctx.data === "object" && ctx.data !== null ? ctx.data : {}),
+    ...data,
+  };
+}
+
 /**
  * Sanitize filename for Content-Disposition header
  * Removes or encodes characters that could break the header
@@ -41,7 +48,17 @@ const getGameHandlerImpl: Handler = async (req: Request, ctx: RequestContext) =>
   const url = new URL(req.url);
   const match = url.pathname.match(/^\/api\/get_game\/(\d+)$/);
 
+  setContextData(ctx, {
+    endpoint: "/api/get_game/:gameid",
+    getGamePath: url.pathname,
+    getGameRangeHeader: req.headers.get("range") || null,
+  });
+
   if (!match) {
+    setContextData(ctx, {
+      getGameResolved: false,
+      getGameReason: "invalid_path",
+    });
     throw new ServiceError({
       statusCode: 404,
       message: "File not found",
@@ -50,6 +67,10 @@ const getGameHandlerImpl: Handler = async (req: Request, ctx: RequestContext) =>
 
   const idToken = match[1];
   if (!idToken) {
+    setContextData(ctx, {
+      getGameResolved: false,
+      getGameReason: "missing_id",
+    });
     throw new ServiceError({
       statusCode: 404,
       message: "File not found",
@@ -57,9 +78,15 @@ const getGameHandlerImpl: Handler = async (req: Request, ctx: RequestContext) =>
   }
 
   const id = parseInt(idToken, 10);
+  setContextData(ctx, { getGameId: id });
+
   const entry = await getCatalogEntryById(id);
 
   if (!entry) {
+    setContextData(ctx, {
+      getGameResolved: false,
+      getGameReason: "catalog_entry_not_found",
+    });
     throw new ServiceError({
       statusCode: 404,
       message: "File not found",
@@ -69,6 +96,13 @@ const getGameHandlerImpl: Handler = async (req: Request, ctx: RequestContext) =>
   const file = Bun.file(entry.absPath);
   const exists = await file.exists();
   if (!exists) {
+    setContextData(ctx, {
+      getGameResolved: false,
+      getGameReason: "file_missing_on_disk",
+      getGameFileName: entry.filename,
+      getGameFilePath: entry.absPath,
+      getGameVirtualPath: entry.virtualPath,
+    });
     throw new ServiceError({
       statusCode: 404,
       message: "File not found",
@@ -78,8 +112,23 @@ const getGameHandlerImpl: Handler = async (req: Request, ctx: RequestContext) =>
   const fileSize = file.size;
   const rangeHeader = req.headers.get("range");
 
+  setContextData(ctx, {
+    getGameResolved: true,
+    getGameFileName: entry.filename,
+    getGameFilePath: entry.absPath,
+    getGameVirtualPath: entry.virtualPath,
+    getGameFileSize: fileSize,
+    getGameCatalogId: entry.id,
+    getGameAppId: entry.appId,
+    getGameTitleId: entry.titleId,
+  });
+
   if (rangeHeader) {
     if (!isSingleRange(rangeHeader)) {
+      setContextData(ctx, {
+        getGameResolved: false,
+        getGameReason: "multiple_ranges_not_supported",
+      });
       return new Response("Multiple ranges not supported", {
         status: 416,
         headers: {
@@ -90,6 +139,10 @@ const getGameHandlerImpl: Handler = async (req: Request, ctx: RequestContext) =>
 
     const range = parseRange(rangeHeader, fileSize);
     if (!range) {
+      setContextData(ctx, {
+        getGameResolved: false,
+        getGameReason: "invalid_range",
+      });
       return new Response("Range request invalid", {
         status: 416,
         headers: {
@@ -100,6 +153,13 @@ const getGameHandlerImpl: Handler = async (req: Request, ctx: RequestContext) =>
 
     const partialFile = file.slice(range.start, range.end + 1);
     const contentLength = range.end - range.start + 1;
+
+    setContextData(ctx, {
+      getGamePartial: true,
+      getGameRangeStart: range.start,
+      getGameRangeEnd: range.end,
+      getGameContentLength: contentLength,
+    });
 
     return new Response(partialFile, {
       status: 206,
@@ -112,6 +172,11 @@ const getGameHandlerImpl: Handler = async (req: Request, ctx: RequestContext) =>
       },
     });
   }
+
+  setContextData(ctx, {
+    getGamePartial: false,
+    getGameContentLength: fileSize,
+  });
 
   return new Response(file, {
     headers: {
