@@ -113,8 +113,13 @@ function toSectionsItem(entry: CatalogFileEntry): ShopSectionsItem {
   };
 }
 
-function buildSectionsPayload(entries: CatalogFileEntry[], limit: number): ShopSectionsPayload {
-  const safeLimit = Math.max(1, Number.isFinite(limit) ? Math.floor(limit) : 50);
+function buildSectionsPayload(
+  entries: CatalogFileEntry[],
+  discoveryLimit: number,
+  allLimit: number,
+): ShopSectionsPayload {
+  const safeDiscoveryLimit = Math.max(1, Number.isFinite(discoveryLimit) ? Math.floor(discoveryLimit) : 50);
+  const safeAllLimit = Math.max(1, Number.isFinite(allLimit) ? Math.floor(allLimit) : 150);
 
   const matchedEntries = entries.filter((entry) => entry.hasTitleDbMatch);
   const otherEntries = entries.filter((entry) => !entry.hasTitleDbMatch);
@@ -155,8 +160,8 @@ function buildSectionsPayload(entries: CatalogFileEntry[], limit: number): ShopS
 
   // Apply limit to discovery sections (new/recommended) per AeroFoil spec
   // Only include matched base games, unmatched entries go to "Other"
-  const newItems = sortedByReleaseDate.slice(0, safeLimit).map(toSectionsItem);
-  const recommendedItems = sortedByRating.slice(0, safeLimit).map(toSectionsItem);
+  const newItems = sortedByReleaseDate.slice(0, safeDiscoveryLimit).map(toSectionsItem);
+  const recommendedItems = sortedByRating.slice(0, safeDiscoveryLimit).map(toSectionsItem);
 
   // Group updates by base title ID and get latest version per title
   // Following AeroFoil's pattern: group by the base game's title_id
@@ -179,7 +184,7 @@ function buildSectionsPayload(entries: CatalogFileEntry[], limit: number): ShopS
     .map(toSectionsItem);
 
   const allItems = sortedByName.map(toSectionsItem);
-  const limitedAllItems = allItems.slice(0, safeLimit);
+  const limitedAllItems = allItems.slice(0, safeAllLimit);
 
   const otherItems = [...otherEntries]
     .sort((a, b) => (a.titleName || a.name).localeCompare(b.titleName || b.name))
@@ -274,7 +279,7 @@ function isCacheValid(): boolean {
   return Date.now() - cachedAt <= cacheTtlMs;
 }
 
-async function buildShopCatalog(limitForAllSection: number = 50): Promise<ShopCatalog> {
+async function buildShopCatalog(discoveryLimit: number = 50): Promise<ShopCatalog> {
   const scanned = await scanLibraryFiles();
 
   const entries: CatalogFileEntry[] = await Promise.all(
@@ -405,19 +410,24 @@ async function buildShopCatalog(limitForAllSection: number = 50): Promise<ShopCa
     shopData.referrer = REFERRER;
   }
 
+  // The `all` section is server-controlled and ignores any client-provided limit:
+  // 500 items when any entry was enriched from TitleDB, 150 otherwise.
+  const titleDbLoaded = entries.some((entry) => entry.iconUrl !== null);
+  const allLimit = titleDbLoaded ? 500 : 150;
+
   return {
     shopData,
-    sectionsPayload: buildSectionsPayload(entries, limitForAllSection),
+    sectionsPayload: buildSectionsPayload(entries, discoveryLimit, allLimit),
     entries,
   };
 }
 
-export async function getShopCatalog(forceRefresh: boolean = false, limitForAllSection: number = 50): Promise<ShopCatalog> {
+export async function getShopCatalog(forceRefresh: boolean = false, discoveryLimit: number = 50): Promise<ShopCatalog> {
   if (!forceRefresh && isCacheValid()) {
     return cachedCatalog as ShopCatalog;
   }
 
-  const catalog = await buildShopCatalog(limitForAllSection);
+  const catalog = await buildShopCatalog(discoveryLimit);
   cachedCatalog = catalog;
   cachedAt = Date.now();
   return catalog;
@@ -432,26 +442,23 @@ export async function getCatalogEntryById(id: number): Promise<CatalogFileEntry 
   return refreshedCatalog.entries.find((entry) => entry.id === id) || null;
 }
 
-export async function buildShopSections(limit: number = 50): Promise<ShopSectionsPayload> {
-  const catalog = await getShopCatalog(false, limit);
+export async function buildShopSections(discoveryLimit: number = 50): Promise<ShopSectionsPayload> {
+  const catalog = await getShopCatalog(false, discoveryLimit);
 
-  const allSection = catalog.sectionsPayload.sections.find((section) => section.id === "all");
-  if (allSection && allSection.items.length > limit) {
-    const trimmedItems = allSection.items.slice(0, limit);
-    return {
-      sections: catalog.sectionsPayload.sections.map((section) => {
-        if (section.id !== "all") return section;
-        return {
-          ...section,
-          items: trimmedItems,
-          total: section.total ?? allSection.items.length,
-          truncated: true,
-        };
-      }),
-    };
-  }
+  // `all` is server-controlled and is not affected by the client limit.
+  // Trim cached discovery sections down if the caller asked for fewer than the cache holds.
+  const needsTrim = catalog.sectionsPayload.sections.some(
+    (section) => (section.id === "new" || section.id === "recommended") && section.items.length > discoveryLimit,
+  );
+  if (!needsTrim) return catalog.sectionsPayload;
 
-  return catalog.sectionsPayload;
+  return {
+    sections: catalog.sectionsPayload.sections.map((section) => {
+      if (section.id !== "new" && section.id !== "recommended") return section;
+      if (section.items.length <= discoveryLimit) return section;
+      return { ...section, items: section.items.slice(0, discoveryLimit) };
+    }),
+  };
 }
 
 /**
