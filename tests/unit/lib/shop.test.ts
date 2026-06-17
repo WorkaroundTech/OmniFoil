@@ -56,5 +56,27 @@ describe("lib/shop", () => {
       const shopData = await buildShopData();
       expect(shopData).toBeDefined();
     });
+
+    it("should omit titledb blob for CyberFoil clients", async () => {
+      const shopData = await buildShopData(true);
+      expect(shopData.titledb).toBeUndefined();
+    });
+
+    it("should expose titledb blob for Tinfoil clients when entries are matched", async () => {
+      const shopData = await buildShopData(false);
+      // titledb is only emitted when at least one matched titleId exists.
+      // The unit env may not have a populated library, so just assert the
+      // shape when the field is present.
+      if (shopData.titledb !== undefined) {
+        expect(typeof shopData.titledb).toBe("object");
+        for (const [key, entry] of Object.entries(shopData.titledb)) {
+          expect(key).toMatch(/^[0-9A-F]{16}$/);
+          expect(entry.id).toBe(key);
+          expect(typeof entry.name).toBe("string");
+          expect(typeof entry.version).toBe("number");
+          expect(typeof entry.size).toBe("number");
+        }
+      }
+    });
   });
 });

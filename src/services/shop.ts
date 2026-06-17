@@ -9,10 +9,23 @@ import { getTitleInfo } from "./titledb";
 import { getOverrideForFile } from "../lib/overrides";
 import type { AppType } from "../types";
 
+export interface ShopTitleDBEntry {
+  id: string;
+  name: string;
+  version: number;
+  region?: string;
+  releaseDate?: number;
+  rating?: number;
+  publisher?: string;
+  description?: string;
+  size: number;
+}
+
 export interface ShopData {
   files: Array<{ url: string; size: number }>;
   success?: string;
   referrer?: string;
+  titledb?: Record<string, ShopTitleDBEntry>;
 }
 
 export interface CatalogFileEntry {
@@ -475,6 +488,43 @@ export async function buildShopData(isCyberFoil: boolean = false): Promise<ShopD
   // Tinfoil omits it when empty to avoid rendering empty banners on client side
   if (isCyberFoil && !shopData.success) {
     shopData.success = "";
+  }
+
+  // Tinfoil clients can struggle to load TitleDB on the Switch itself; embed
+  // per-title metadata directly so they don't need to fetch it. CyberFoil has
+  // its own /api/get_game endpoint and doesn't need the inline blob.
+  if (!isCyberFoil) {
+    const latestPerTitleId = new Map<string, CatalogFileEntry>();
+    for (const entry of catalog.entries) {
+      if (!entry.titleId) continue;
+      const key = entry.titleId.toUpperCase();
+      const existing = latestPerTitleId.get(key);
+      if (!existing || compareVersions(entry.version, existing.version) > 0) {
+        latestPerTitleId.set(key, entry);
+      }
+    }
+
+    const titledb: Record<string, ShopTitleDBEntry> = {};
+    for (const [key, entry] of latestPerTitleId) {
+      // Updates/DLC inherit metadata from the base game's TitleDB row.
+      const metaTitleId = entry.baseTitleId || entry.titleId!;
+      const info = await getTitleInfo(metaTitleId);
+      titledb[key] = {
+        id: key,
+        name: entry.titleName || entry.name,
+        version: parseInt(entry.version, 10) || 0,
+        region: info?.region,
+        releaseDate: info?.releaseDate,
+        rating: info?.rating,
+        publisher: info?.publisher,
+        description: info?.description,
+        size: entry.size,
+      };
+    }
+
+    if (Object.keys(titledb).length > 0) {
+      shopData.titledb = titledb;
+    }
   }
 
   return shopData;
