@@ -9,13 +9,21 @@ import { methodValidator } from "../../middleware";
 
 const TINFOIL_HEADERS = ["Theme", "Uid", "Version", "Revision", "Language", "Hauth", "Uauth"];
 
-function isTinfoilLikeRequest(req: Request): boolean {
+function hasTinfoilHeaderSet(req: Request): boolean {
   return TINFOIL_HEADERS.every((header) => req.headers.has(header));
 }
 
 function isCyberFoilRequest(req: Request): boolean {
   const userAgent = req.headers.get("user-agent") || "";
   return userAgent.toLowerCase().includes("cyberfoil");
+}
+
+// Match AeroFoil's `_is_shop_client_request`: full Tinfoil header set OR a
+// User-Agent that names tinfoil/cyberfoil.
+function isTinfoilLikeRequest(req: Request): boolean {
+  if (hasTinfoilHeaderSet(req)) return true;
+  const userAgent = (req.headers.get("user-agent") || "").toLowerCase();
+  return userAgent.includes("tinfoil") || userAgent.includes("cyberfoil");
 }
 
 const shopHandlerImpl: Handler = async (req: Request, ctx: RequestContext) => {

@@ -5,19 +5,28 @@
 
 import { type RequestContext, type Handler, ServiceError } from "../../types";
 import { buildIndexPayload } from "../utils";
+import { buildShopData } from "../../services/shop";
 import { methodValidator } from "../../middleware";
 import { LOG_FORMAT } from "../../config";
 
 const INDEX_HTML = Bun.file(new URL("../../index.html", import.meta.url));
 const TINFOIL_HEADERS = ["Theme", "Uid", "Version", "Revision", "Language", "Hauth", "Uauth"];
 
-function isTinfoilLikeRequest(req: Request): boolean {
+function hasTinfoilHeaderSet(req: Request): boolean {
   return TINFOIL_HEADERS.every((header) => req.headers.has(header));
 }
 
 function isCyberFoilRequest(req: Request): boolean {
   const userAgent = req.headers.get("user-agent") || "";
   return userAgent.toLowerCase().includes("cyberfoil");
+}
+
+// Match AeroFoil's `_is_shop_client_request`: any request carrying the full Tinfoil
+// header set OR a User-Agent that names tinfoil/cyberfoil counts as a shop client.
+function isTinfoilLikeRequest(req: Request): boolean {
+  if (hasTinfoilHeaderSet(req)) return true;
+  const userAgent = (req.headers.get("user-agent") || "").toLowerCase();
+  return userAgent.includes("tinfoil") || userAgent.includes("cyberfoil");
 }
 
 function getClientType(req: Request): string {
@@ -66,9 +75,9 @@ const indexHandlerImpl: Handler = async (req: Request, ctx: RequestContext) => {
 
   if (isTinfoilLikeRequest(req)) {
     const isCyberFoil = isCyberFoilRequest(req);
-    console.log(`[${clientType}] Serving index listing to ${ctx.remoteAddress || "unknown"}`);
-    const indexPayload = buildIndexPayload(isCyberFoil);
-    return Response.json(indexPayload);
+    console.log(`[${clientType}] Serving shop catalog to ${ctx.remoteAddress || "unknown"}`);
+    const shopData = await buildShopData(isCyberFoil);
+    return Response.json(shopData);
   }
 
   if (isBrowser) {

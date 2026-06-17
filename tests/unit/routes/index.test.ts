@@ -56,7 +56,7 @@ describe("routes/index", () => {
     expect(response.status).toBe(200);
   });
 
-  it("should return index listing for Tinfoil/CyberFoil-style headers", async () => {
+  it("should return shop catalog payload for Tinfoil/CyberFoil-style headers", async () => {
     const req = new Request("http://localhost/", {
       headers: {
         Theme: "dark",
@@ -74,13 +74,28 @@ describe("routes/index", () => {
 
     const data = await response.json() as any;
     expect(response.headers.get("content-type")).toContain("application/json");
+    // Tinfoil-like clients receive the actual shop catalog at `/`, matching
+    // AeroFoil's behavior — not a pointer to /shop.json + /shop.tfl.
     expect(data.files).toBeDefined();
-    expect(data.directories).toBeDefined();
     expect(Array.isArray(data.files)).toBe(true);
-
+    expect(data.directories).toBeUndefined();
     const fileUrls = data.files.map((f: any) => f.url);
-    expect(fileUrls).toContain("shop.json");
-    expect(fileUrls).toContain("shop.tfl");
+    expect(fileUrls).not.toContain("shop.json");
+    expect(fileUrls).not.toContain("shop.tfl");
+  });
+
+  it("should detect tinfoil-like clients via User-Agent fallback", async () => {
+    const req = new Request("http://localhost/", {
+      headers: { "User-Agent": "Tinfoil/14.0" },
+    });
+
+    const response = await indexHandler(req, ctx);
+    const data = await response.json() as any;
+
+    expect(data.files).toBeDefined();
+    expect(Array.isArray(data.files)).toBe(true);
+    // Shop catalog payload, not the pointer index.
+    expect(data.directories).toBeUndefined();
   });
 
   describe("success message handling", () => {

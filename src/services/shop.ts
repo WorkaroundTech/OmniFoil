@@ -151,13 +151,6 @@ function buildSectionsPayload(
     return dateB - dateA;
   });
 
-  // Sort base games by name for all section
-  const sortedByName = [...baseGames].sort((a, b) => {
-    const nameA = a.titleName || a.name;
-    const nameB = b.titleName || b.name;
-    return nameA.localeCompare(nameB);
-  });
-
   // Apply limit to discovery sections (new/recommended) per AeroFoil spec
   // Only include matched base games, unmatched entries go to "Other"
   const newItems = sortedByReleaseDate.slice(0, safeDiscoveryLimit).map(toSectionsItem);
@@ -174,7 +167,8 @@ function buildSectionsPayload(
       updatesByBaseTitle.set(update.baseTitleId, update);
     }
   }
-  const updateItems = Array.from(updatesByBaseTitle.values())
+  const dedupedUpdates = Array.from(updatesByBaseTitle.values());
+  const updateItems = dedupedUpdates
     .sort((a, b) => (a.titleName || a.name).localeCompare(b.titleName || b.name))
     .map(toSectionsItem);
 
@@ -183,7 +177,15 @@ function buildSectionsPayload(
     .sort((a, b) => (a.titleName || a.name).localeCompare(b.titleName || b.name))
     .map(toSectionsItem);
 
-  const allItems = sortedByName.map(toSectionsItem);
+  // `all` mirrors AeroFoil's `base_items + update_items_full + dlc_items_full`
+  // sorted alphabetically — a single browseable list of every owned matched
+  // entry, not just base games.
+  const allMatched = [...baseGames, ...dedupedUpdates, ...dlc].sort((a, b) => {
+    const nameA = a.titleName || a.name;
+    const nameB = b.titleName || b.name;
+    return nameA.localeCompare(nameB);
+  });
+  const allItems = allMatched.map(toSectionsItem);
   const limitedAllItems = allItems.slice(0, safeAllLimit);
 
   const otherItems = [...otherEntries]

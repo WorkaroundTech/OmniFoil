@@ -136,17 +136,18 @@ describe("shop sections endpoint", () => {
 
     const allSection = data.sections.find((s: any) => s.id === "all");
     expect(allSection).toBeDefined();
-    
+
     // Test structure regardless of content (library might be empty in CI)
     expect(allSection.items).toBeDefined();
     expect(Array.isArray(allSection.items)).toBe(true);
     expect(allSection.total).toBeDefined();
     expect(allSection.truncated).toBeDefined();
 
-    // If items exist, verify they are BASE games only
+    // `all` mirrors AeroFoil: it contains base + updates + dlc, so every
+    // matched item must declare a known app_type (0 BASE, 1 DLC, 2 UPDATE).
     if (allSection.items.length > 0) {
       allSection.items.forEach((item: any) => {
-        expect(item.app_type).toBe(0); // BASE = 0
+        expect([0, 1, 2]).toContain(item.app_type);
       });
     }
   });
