@@ -465,21 +465,49 @@ export async function searchByName(titleName: string): Promise<string | null> {
 }
 
 /**
- * Force refresh the TitleDB cache
+ * Force refresh the TitleDB cache.
+ *
+ * Non-destructive: downloads into fresh Maps and atomically swaps `titleDBCache`
+ * only if the titles download succeeds. On failure, the existing in-memory cache
+ * is left untouched so live requests continue to be served.
  */
 export async function refreshTitleDB(): Promise<void> {
   if (!TITLEDB_ENABLED) {
     console.log("[TITLEDB] Cannot refresh: TitleDB is disabled");
     return;
   }
-  
-  console.log("[TITLEDB] Forcing TitleDB refresh...");
-  isInitialized = false;
-  initPromise = null;
-  titleDBCache = null;
-  cacheMetadata = {}; // Clear metadata to force re-download
-  await saveCacheMetadata();
-  await initializeTitleDB();
+
+  // First refresh ever — fall through to initializeTitleDB which handles the
+  // cold-start path (cache load, parsing, init flags).
+  if (!titleDBCache) {
+    await initializeTitleDB();
+    return;
+  }
+
+  console.log("[TITLEDB] Refreshing TitleDB...");
+
+  const titlesFilename = `${TITLEDB_REGION}.${TITLEDB_LANGUAGE}.json`;
+  const versionsFilename = "versions.json";
+
+  const titlesData = await downloadTitleDBFile(titlesFilename);
+  if (!titlesData) {
+    console.warn("[TITLEDB] Refresh failed (titles download); keeping previous cache");
+    return;
+  }
+
+  const versionsData = await downloadTitleDBFile(versionsFilename);
+
+  titleDBCache = {
+    titles: parseTitlesData(titlesData),
+    versions: versionsData ? parseVersionsData(versionsData) : titleDBCache.versions,
+    lastUpdated: Date.now(),
+  };
+
+  if (!versionsData) {
+    console.warn("[TITLEDB] Versions download failed; reusing previous versions map");
+  }
+
+  console.log(`[TITLEDB] Refresh complete. ${titleDBCache.titles.size} titles, ${titleDBCache.versions.size} version entries`);
 }
 
 /**

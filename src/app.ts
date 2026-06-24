@@ -3,11 +3,11 @@
  * Configures server, middleware, and routing
  */
 
-import { PORT, BASES, getAuthUsers, CACHE_TTL, SUCCESS_MESSAGE, LOG_FORMAT } from "./config";
+import { PORT, BASES, getAuthUsers, CACHE_TTL, SUCCESS_MESSAGE, LOG_FORMAT, TITLEDB_ENABLED, TITLEDB_AUTO_UPDATE, TITLEDB_CACHE_TTL } from "./config";
 import { type RequestContext } from "./types";
 import { authorize, timing, logging, errorHandler, compose } from "./middleware";
 import { router } from "./routes";
-import { initializeTitleDB } from "./services/titledb";
+import { initializeTitleDB, refreshTitleDB } from "./services/titledb";
 
 const asciiHeader = `
 ╔════════════════════════════════════════╗
@@ -39,6 +39,7 @@ export async function setupServer() {
   initializeTitleDB()
     .then(() => {
       console.log(`> TitleDB initialization complete.`);
+      scheduleTitleDBRefresh();
     })
     .catch((err) => {
       console.error(`> Failed to initialize TitleDB:`, err);
@@ -78,6 +79,27 @@ export async function setupServer() {
       return handler(req, ctx);
     },
   });
+}
+
+function scheduleTitleDBRefresh() {
+  if (!TITLEDB_ENABLED || !TITLEDB_AUTO_UPDATE) return;
+
+  const intervalMs = TITLEDB_CACHE_TTL * 1000;
+  console.log(`> TitleDB auto-refresh enabled (every ${TITLEDB_CACHE_TTL / 3600}h)`);
+
+  const tick = () => {
+    const t = setTimeout(async () => {
+      try {
+        await refreshTitleDB();
+      } catch (err) {
+        console.error("[TITLEDB] Scheduled refresh failed:", err);
+      }
+      tick();
+    }, intervalMs);
+    t.unref();
+  };
+
+  tick();
 }
 
 export function printEndpoints() {
