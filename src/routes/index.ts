@@ -10,6 +10,7 @@ import { filesHandler } from "./handlers/files";
 import { cyberfoilSectionsHandler, getGameHandler } from "./handlers/cyberfoil";
 import { getIcon, getBanner } from "./handlers/media";
 import { savesListHandler } from "./handlers/saves";
+import { catalogPageHandler } from "./handlers/catalog";
 
 export const router: Handler = async (req: Request, ctx: RequestContext) => {
   const url = new URL(req.url);
@@ -19,17 +20,22 @@ export const router: Handler = async (req: Request, ctx: RequestContext) => {
     return indexHandler(req, ctx);
   }
 
-  // 2. Shop data endpoints
+  // 2. Browser catalog page
+  if (url.pathname === "/catalog") {
+    return catalogPageHandler(req, ctx);
+  }
+
+  // 3. Shop data endpoints
   if (url.pathname === "/shop.json" || url.pathname === "/shop.tfl") {
     return shopHandler(req, ctx);
   }
 
-  // 3. File download endpoint
+  // 4. File download endpoint
   if (url.pathname.startsWith("/files/")) {
     return filesHandler(req, ctx);
   }
 
-  // 4. CyberFoil-compatible endpoints
+  // 5. CyberFoil-compatible endpoints
   if (url.pathname === "/api/shop/sections") {
     return cyberfoilSectionsHandler(req, ctx);
   }
@@ -38,7 +44,7 @@ export const router: Handler = async (req: Request, ctx: RequestContext) => {
     return getGameHandler(req, ctx);
   }
 
-  // 5. Media endpoints (icons and banners)
+  // 6. Media endpoints (icons and banners)
   if (/^\/api\/shop\/icon\/[0-9A-Fa-f]{16}$/.test(url.pathname)) {
     return getIcon(req, ctx);
   }

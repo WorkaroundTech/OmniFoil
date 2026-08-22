@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OmniFoil Catalog</title>
+    <style>
+        :root {
+            color-scheme: dark;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #0f0f0f;
+            color: #e0e0e0;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            margin: 0 0 8px;
+            color: #ffd700;
+            font-size: 30px;
+        }
+        .subtitle {
+            margin: 0 0 16px;
+            color: #bdbdbd;
+        }
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+            color: #a9a9a9;
+            font-size: 14px;
+        }
+        .toolbar a {
+            color: #4da6ff;
+            text-decoration: none;
+        }
+        .status {
+            background: #1a1a1a;
+            border: 1px solid #2e2e2e;
+            border-radius: 8px;
+            padding: 12px 14px;
+            margin-bottom: 16px;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 14px;
+        }
+        .card {
+            border: 1px solid #2f2f2f;
+            background: #171717;
+            border-radius: 10px;
+            padding: 12px;
+            display: grid;
+            grid-template-columns: 120px 1fr;
+            gap: 12px;
+            cursor: pointer;
+        }
+        .card:focus-visible {
+            outline: 2px solid #4da6ff;
+            outline-offset: 1px;
+        }
+        .thumb {
+            width: 120px;
+            height: 120px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            background: #242424;
+            object-fit: cover;
+        }
+        .title {
+            margin: 0 0 6px;
+            line-height: 1.25;
+            font-size: 15px;
+            color: #f2f2f2;
+            word-break: break-word;
+        }
+        .meta {
+            margin: 0;
+            line-height: 1.5;
+            font-size: 12px;
+            color: #acacac;
+        }
+        .badges {
+            margin-top: 6px;
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .badge {
+            font-size: 11px;
+            background: #262626;
+            border: 1px solid #373737;
+            color: #cdcdcd;
+            border-radius: 999px;
+            padding: 2px 7px;
+        }
+
+        .modal[hidden] {
+            display: none;
+        }
+        .modal {
+            position: fixed;
+            inset: 0;
+            z-index: 20;
+        }
+        .modal-backdrop {
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.66);
+        }
+        .modal-panel {
+            position: relative;
+            z-index: 21;
+            width: min(940px, calc(100% - 24px));
+            margin: 18px auto;
+            max-height: calc(100vh - 36px);
+            overflow: auto;
+            border: 1px solid #313131;
+            border-radius: 12px;
+            background: #151515;
+            padding: 16px;
+        }
+        .modal-head {
+            display: grid;
+            grid-template-columns: 300px 1fr auto;
+            gap: 12px;
+            align-items: start;
+            margin-bottom: 12px;
+        }
+        .modal-thumb {
+            width: 300px;
+            height: 300px;
+            border-radius: 10px;
+            border: 1px solid #333;
+            background: #242424;
+            object-fit: cover;
+        }
+        .modal h2 {
+            margin: 0 0 8px;
+            color: #f0f0f0;
+            line-height: 1.25;
+        }
+        .close {
+            border: 1px solid #3b3b3b;
+            background: #232323;
+            border-radius: 8px;
+            color: #e8e8e8;
+            font-size: 14px;
+            padding: 6px 10px;
+            cursor: pointer;
+        }
+        .details-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 8px 12px;
+            margin-bottom: 12px;
+            font-size: 13px;
+        }
+        .details-grid div {
+            color: #c9c9c9;
+        }
+        .synopsis {
+            margin: 0 0 12px;
+            color: #d6d6d6;
+            line-height: 1.45;
+            white-space: pre-wrap;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+        th, td {
+            border-bottom: 1px solid #2b2b2b;
+            text-align: left;
+            padding: 8px 6px;
+            vertical-align: top;
+        }
+        th {
+            color: #e9e9e9;
+            position: sticky;
+            top: 0;
+            background: #171717;
+        }
+        td {
+            color: #bcbcbc;
+            word-break: break-word;
+        }
+        td a {
+            color: #4da6ff;
+            text-decoration: none;
+        }
+        @media (max-width: 1024px) {
+            .modal-head {
+                grid-template-columns: 220px 1fr auto;
+            }
+            .modal-thumb {
+                width: 220px;
+                height: 220px;
+            }
+        }
+        @media (max-width: 760px) {
+            .modal-head {
+                grid-template-columns: 1fr auto;
+                grid-template-areas:
+                    "thumb close"
+                    "info info";
+            }
+            .modal-thumb {
+                grid-area: thumb;
+                width: min(300px, 52vw);
+                height: min(300px, 52vw);
+            }
+            .modal-head > div {
+                grid-area: info;
+            }
+            .close {
+                grid-area: close;
+                justify-self: end;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="container">
+        <h1>Catalog</h1>
+        <p class="subtitle">Grouped view: each card represents one game and includes its base/update/DLC files.</p>
+
+        <div class="toolbar">
+            <a href="/">Home</a>
+            <span id="count">Games: --</span>
+            <span id="source">Source: --</span>
+        </div>
+
+        <div id="status" class="status">Loading catalog...</div>
+        <section id="catalog" class="grid" aria-live="polite"></section>
+    </main>
+
+    <section id="modal" class="modal" hidden aria-hidden="true" aria-modal="true" role="dialog">
+        <div class="modal-backdrop" id="modal-backdrop"></div>
+        <div class="modal-panel">
+            <div class="modal-head">
+                <img id="modal-thumb" class="modal-thumb" alt="">
+                <div>
+                    <h2 id="modal-title"></h2>
+                    <div id="modal-summary" class="details-grid"></div>
+                </div>
+                <button type="button" class="close" id="modal-close">Close</button>
+            </div>
+            <p id="modal-synopsis" class="synopsis"></p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Version</th>
+                        <th>Size</th>
+                        <th>Filename</th>
+                        <th>Download</th>
+                    </tr>
+                </thead>
+                <tbody id="modal-files"></tbody>
+            </table>
+        </div>
+    </section>
+
+    <script>
+        const APP_TYPE_LABELS = { 0: "Base", 1: "DLC", 2: "Update", 3: "Demo" };
+        const statusEl = document.getElementById("status");
+        const catalogEl = document.getElementById("catalog");
+        const countEl = document.getElementById("count");
+        const sourceEl = document.getElementById("source");
+        const modalEl = document.getElementById("modal");
+        const modalBackdropEl = document.getElementById("modal-backdrop");
+        const modalCloseEl = document.getElementById("modal-close");
+        const modalTitleEl = document.getElementById("modal-title");
+        const modalThumbEl = document.getElementById("modal-thumb");
+        const modalSummaryEl = document.getElementById("modal-summary");
+        const modalSynopsisEl = document.getElementById("modal-synopsis");
+        const modalFilesEl = document.getElementById("modal-files");
+        const groups = [];
+        let activeCard = null;
+
+        function escapeHtml(value) {
+            return String(value)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;");
+        }
+
+        function escapeAttr(value) {
+            return escapeHtml(value).replace(/"/g, "&quot;");
+        }
+
+        function bytesToHuman(bytes) {
+            if (!Number.isFinite(bytes) || bytes < 0) return "Unknown size";
+            const units = ["B", "KB", "MB", "GB", "TB"];
+            let value = bytes;
+            let unit = units[0];
+            for (let i = 0; i < units.length; i++) {
+                unit = units[i];
+                if (value < 1024 || i === units.length - 1) break;
+                value /= 1024;
+            }
+            return value >= 100 || unit === "B" ? `${Math.round(value)} ${unit}` : `${value.toFixed(1)} ${unit}`;
+        }
+
+        function formatReleaseDate(raw) {
+            if (!Number.isFinite(raw)) return "--";
+            const ms = raw < 1e12 ? raw * 1000 : raw;
+            const date = new Date(ms);
+            if (Number.isNaN(date.getTime())) return "--";
+            return date.toLocaleDateString();
+        }
+
+        function parseFilenameFromUrl(url) {
+            if (!url || typeof url !== "string") return "";
+            const hashIndex = url.indexOf("#");
+            if (hashIndex === -1) return "";
+            try {
+                return decodeURIComponent(url.slice(hashIndex + 1));
+            } catch {
+                return url.slice(hashIndex + 1);
+            }
+        }
+
+        function normalizeSectionItem(item) {
+            return {
+                name: item.title_name || item.name || "Unknown title",
+                titleId: typeof item.title_id === "string" ? item.title_id.toUpperCase() : null,
+                appId: typeof item.app_id === "string" ? item.app_id.toUpperCase() : null,
+                appType: Number(item.app_type),
+                version: Number.isFinite(item.app_version) ? String(item.app_version) : "--",
+                category: typeof item.category === "string" ? item.category : "",
+                iconUrl: typeof item.icon_url === "string" ? item.icon_url : "",
+                size: Number(item.size),
+                url: typeof item.url === "string" ? item.url : "#",
+                filename: item.filename || parseFilenameFromUrl(item.url) || "",
+            };
+        }
+
+        function normalizeFallbackFile(file) {
+            const filename = parseFilenameFromUrl(file.url);
+            return {
+                name: filename || "Unknown title",
+                titleId: null,
+                appId: null,
+                appType: -1,
+                version: "--",
+                category: "",
+                iconUrl: "",
+                size: Number(file.size),
+                url: typeof file.url === "string" ? file.url : "#",
+                filename,
+            };
+        }
+
+        function getGroupKey(item) {
+            if (item.titleId) return `title:${item.titleId}`;
+            const fallbackName = (item.name || "unknown").trim().toLowerCase();
+            return `name:${fallbackName}`;
+        }
+
+        function compareVersionStrings(a, b) {
+            const aParts = String(a).split(".").map((part) => Number.parseInt(part, 10) || 0);
+            const bParts = String(b).split(".").map((part) => Number.parseInt(part, 10) || 0);
+            const maxLen = Math.max(aParts.length, bParts.length);
+            for (let i = 0; i < maxLen; i++) {
+                const diff = (aParts[i] || 0) - (bParts[i] || 0);
+                if (diff !== 0) return diff;
+            }
+            return 0;
+        }
+
+        function pickGroupMeta(group, titledbMap) {
+            const baseFile = group.files.find((file) => file.appType === 0 && file.appId && titledbMap[file.appId]);
+            if (baseFile && baseFile.appId) return titledbMap[baseFile.appId];
+
+            const anyWithMeta = group.files.find((file) => file.appId && titledbMap[file.appId]);
+            if (anyWithMeta && anyWithMeta.appId) return titledbMap[anyWithMeta.appId];
+
+            if (group.titleId && titledbMap[group.titleId]) return titledbMap[group.titleId];
+
+            return null;
+        }
+
+        function buildGroups(items, titledbMap) {
+            const grouped = new Map();
+
+            for (const item of items) {
+                const key = getGroupKey(item);
+                if (!grouped.has(key)) {
+                    grouped.set(key, {
+                        key,
+                        title: item.name,
+                        titleId: item.titleId,
+                        iconUrl: item.iconUrl,
+                        files: [],
+                    });
+                }
+                const group = grouped.get(key);
+                group.files.push(item);
+                if (!group.titleId && item.titleId) group.titleId = item.titleId;
+                if (!group.iconUrl && item.iconUrl) group.iconUrl = item.iconUrl;
+            }
+
+            const result = Array.from(grouped.values()).map((group) => {
+                const totalSize = group.files.reduce((sum, file) => sum + (Number.isFinite(file.size) ? file.size : 0), 0);
+                const appTypeCounts = { base: 0, updates: 0, dlc: 0, demo: 0, other: 0 };
+                let maxVersion = "--";
+
+                for (const file of group.files) {
+                    if (file.appType === 0) appTypeCounts.base++;
+                    else if (file.appType === 1) appTypeCounts.dlc++;
+                    else if (file.appType === 2) appTypeCounts.updates++;
+                    else if (file.appType === 3) appTypeCounts.demo++;
+                    else appTypeCounts.other++;
+
+                    if (maxVersion === "--" || compareVersionStrings(file.version, maxVersion) > 0) {
+                        maxVersion = file.version;
+                    }
+                }
+
+                const meta = pickGroupMeta(group, titledbMap);
+                const categories = new Set();
+                for (const file of group.files) {
+                    if (file.category) {
+                        for (const raw of file.category.split(",")) {
+                            const trimmed = raw.trim();
+                            if (trimmed) categories.add(trimmed);
+                        }
+                    }
+                }
+
+                group.files.sort((a, b) => {
+                    if (a.appType !== b.appType) return a.appType - b.appType;
+                    return compareVersionStrings(a.version, b.version);
+                });
+
+                return {
+                    ...group,
+                    totalSize,
+                    maxVersion,
+                    appTypeCounts,
+                    meta,
+                    categories: Array.from(categories),
+                };
+            });
+
+            result.sort((a, b) => a.title.localeCompare(b.title));
+            return result;
+        }
+
+        function renderStatus(message) {
+            statusEl.textContent = message;
+            statusEl.style.display = "block";
+        }
+
+        function renderCards(dataGroups, sourceLabel) {
+            countEl.textContent = `Games: ${dataGroups.length}`;
+            sourceEl.textContent = `Source: ${sourceLabel}`;
+
+            if (dataGroups.length === 0) {
+                renderStatus("No titles found.");
+                catalogEl.innerHTML = "";
+                return;
+            }
+
+            statusEl.style.display = "none";
+            catalogEl.innerHTML = dataGroups.map((group, index) => {
+                const badges = [];
+                if (group.appTypeCounts.base) badges.push(`<span class="badge">Base ${group.appTypeCounts.base}</span>`);
+                if (group.appTypeCounts.updates) badges.push(`<span class="badge">Updates ${group.appTypeCounts.updates}</span>`);
+                if (group.appTypeCounts.dlc) badges.push(`<span class="badge">DLC ${group.appTypeCounts.dlc}</span>`);
+                if (group.appTypeCounts.demo) badges.push(`<span class="badge">Demo ${group.appTypeCounts.demo}</span>`);
+                if (group.appTypeCounts.other) badges.push(`<span class="badge">Other ${group.appTypeCounts.other}</span>`);
+
+                const iconMarkup = group.iconUrl
+                    ? `<img class="thumb" src="${escapeAttr(group.iconUrl)}" alt="${escapeAttr(group.title)} icon" loading="lazy">`
+                    : `<div class="thumb" aria-hidden="true"></div>`;
+
+                return `<article class="card" role="button" tabindex="0" data-index="${index}" aria-label="Open details for ${escapeAttr(group.title)}">
+                    ${iconMarkup}
+                    <div>
+                        <h2 class="title">${escapeHtml(group.title)}</h2>
+                        <p class="meta">Latest version: ${escapeHtml(group.maxVersion)}<br>Total size: ${escapeHtml(bytesToHuman(group.totalSize))}<br>Files: ${group.files.length}</p>
+                        <div class="badges">${badges.join("")}</div>
+                    </div>
+                </article>`;
+            }).join("");
+        }
+
+        function openModal(index, trigger) {
+            const group = groups[index];
+            if (!group) return;
+
+            activeCard = trigger || null;
+            modalTitleEl.textContent = group.title;
+            modalThumbEl.src = group.iconUrl || "";
+            modalThumbEl.alt = group.iconUrl ? `${group.title} icon` : "";
+            modalThumbEl.style.display = group.iconUrl ? "block" : "none";
+
+            const summary = [];
+            summary.push(`<div><strong>Title ID:</strong> ${escapeHtml(group.titleId || "--")}</div>`);
+            summary.push(`<div><strong>Latest version:</strong> ${escapeHtml(group.maxVersion)}</div>`);
+            summary.push(`<div><strong>Total size:</strong> ${escapeHtml(bytesToHuman(group.totalSize))}</div>`);
+            summary.push(`<div><strong>Files:</strong> ${group.files.length}</div>`);
+            summary.push(`<div><strong>Publisher:</strong> ${escapeHtml(group.meta?.publisher || "--")}</div>`);
+            summary.push(`<div><strong>Release date:</strong> ${escapeHtml(formatReleaseDate(group.meta?.releaseDate))}</div>`);
+            summary.push(`<div><strong>Rating:</strong> ${group.meta?.rating ?? "--"}</div>`);
+            summary.push(`<div><strong>Categories:</strong> ${escapeHtml(group.categories.join(", ") || "--")}</div>`);
+            modalSummaryEl.innerHTML = summary.join("");
+
+            modalSynopsisEl.textContent = group.meta?.description || "No synopsis available.";
+
+            modalFilesEl.innerHTML = group.files.map((file) => {
+                return `<tr>
+                    <td>${escapeHtml(APP_TYPE_LABELS[file.appType] || "Unknown")}</td>
+                    <td>${escapeHtml(file.version)}</td>
+                    <td>${escapeHtml(bytesToHuman(file.size))}</td>
+                    <td>${escapeHtml(file.filename || "--")}</td>
+                    <td><a href="${escapeAttr(file.url)}">Download</a></td>
+                </tr>`;
+            }).join("");
+
+            modalEl.hidden = false;
+            modalEl.setAttribute("aria-hidden", "false");
+            modalCloseEl.focus();
+            document.body.style.overflow = "hidden";
+        }
+
+        function closeModal() {
+            modalEl.hidden = true;
+            modalEl.setAttribute("aria-hidden", "true");
+            document.body.style.overflow = "";
+            if (activeCard) activeCard.focus();
+            activeCard = null;
+        }
+
+        async function loadCatalog() {
+            renderStatus("Loading catalog...");
+            try {
+                const [sectionsRes, shopRes] = await Promise.all([
+                    fetch("/api/shop/sections?limit=500"),
+                    fetch("/shop.json"),
+                ]);
+
+                const sectionsPayload = sectionsRes.ok ? await sectionsRes.json() : null;
+                const shopPayload = shopRes.ok ? await shopRes.json() : null;
+                const titledbMap = shopPayload && typeof shopPayload.titledb === "object" && shopPayload.titledb ? shopPayload.titledb : {};
+
+                const allSection = sectionsPayload && Array.isArray(sectionsPayload.sections)
+                    ? sectionsPayload.sections.find((section) => section && section.id === "all")
+                    : null;
+                const items = allSection && Array.isArray(allSection.items)
+                    ? allSection.items.map(normalizeSectionItem)
+                    : [];
+
+                let sourceLabel = "api/shop/sections + shop.json";
+                let grouped = buildGroups(items, titledbMap);
+
+                if (grouped.length === 0 && shopPayload && Array.isArray(shopPayload.files)) {
+                    sourceLabel = "shop.json";
+                    grouped = buildGroups(shopPayload.files.map(normalizeFallbackFile), titledbMap);
+                }
+
+                groups.length = 0;
+                groups.push(...grouped);
+                renderCards(groups, sourceLabel);
+            } catch {
+                groups.length = 0;
+                catalogEl.innerHTML = "";
+                countEl.textContent = "Games: --";
+                sourceEl.textContent = "Source: unavailable";
+                renderStatus("Could not load catalog data.");
+            }
+        }
+
+        catalogEl.addEventListener("click", (event) => {
+            const target = event.target.closest(".card");
+            if (!target) return;
+            const index = Number.parseInt(target.getAttribute("data-index"), 10);
+            if (!Number.isFinite(index)) return;
+            openModal(index, target);
+        });
+
+        catalogEl.addEventListener("keydown", (event) => {
+            const target = event.target.closest(".card");
+            if (!target) return;
+            if (event.key !== "Enter" && event.key !== " ") return;
+            event.preventDefault();
+            const index = Number.parseInt(target.getAttribute("data-index"), 10);
+            if (!Number.isFinite(index)) return;
+            openModal(index, target);
+        });
+
+        modalCloseEl.addEventListener("click", closeModal);
+        modalBackdropEl.addEventListener("click", closeModal);
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "Escape" && !modalEl.hidden) closeModal();
+        });
+
+        loadCatalog();
+    </script>
+</body>
+</html>
