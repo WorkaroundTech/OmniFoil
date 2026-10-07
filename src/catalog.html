@@ -546,7 +546,7 @@
             renderStatus("Loading catalog...");
             try {
                 const [sectionsRes, shopRes] = await Promise.all([
-                    fetch("/api/shop/sections?limit=500"),
+                    fetch("/api/shop/sections"),
                     fetch("/shop.json"),
                 ]);
 

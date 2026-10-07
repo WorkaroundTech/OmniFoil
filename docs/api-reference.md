@@ -9,6 +9,7 @@ This document provides a complete reference for all HTTP endpoints exposed by Om
 - [Endpoints](#endpoints)
   - [GET /](#get-)
   - [GET /tinfoil](#get-tinfoil)
+  - [GET /catalog](#get-catalog)
   - [GET /shop.json](#get-shopjson)
   - [GET /shop.tfl](#get-shoptfl)
   - [GET /files/:path](#get-filespath)
@@ -71,7 +72,7 @@ Content-Range: bytes <start>-<end>/<total>  (only for 206 responses)
 
 #### Browser Request (text/html)
 
-Returns an HTML page with links to shop endpoints.
+Returns an HTML page with links to the browser catalog and shop endpoints.
 
 **Request:**
 ```bash
@@ -94,10 +95,12 @@ curl -H "Accept: text/html" http://localhost:3000/
   </head>
   <body>
     <h1>OmniFoil</h1>
-    <ul>
-      <li><a href="/shop.json">shop.json</a></li>
-      <li><a href="/shop.tfl">shop.tfl</a></li>
-    </ul>
+    <p>Choose an endpoint:</p>
+    <div class="links">
+      <a href="/catalog">See catalog</a>
+      <a href="/shop.json">shop.json</a>
+      <a href="/shop.tfl">shop.tfl</a>
+    </div>
   </body>
 </html>
 ```
@@ -180,6 +183,28 @@ curl http://localhost:3000/tinfoil
 
 ---
 
+### GET /catalog
+
+**Description:** Browser-friendly view of the game library. Games are grouped with their updates and DLC and shown as cards, with a details dialog listing every file and its download link.
+
+**Request:**
+```bash
+curl http://localhost:3000/catalog
+```
+
+**Response:**
+- Status: `200 OK`
+- Content-Type: `text/html; charset=utf-8`
+- Body: Static HTML page (`src/catalog.html`)
+
+**Notes:**
+- The page loads its data client-side from [`GET /api/shop/sections`](#get-apishopsections) (the `all` section) and [`GET /shop.json`](#get-shopjson) (the `titledb` map)
+- Artwork is loaded directly from the TitleDB `iconUrl` in the `titledb` map, not through `/api/shop/icon/:title_id`
+- If the `all` section is empty, the page falls back to the plain `files` list from `shop.json`
+- Supports `GET` and `HEAD`
+
+---
+
 ### GET /shop.json
 
 **Description:** Returns shop data in JSON format (legacy Tinfoil format). **Note:** CyberFoil clients should use `GET /` with Tinfoil headers instead for faster, more efficient CyberFoil-specific responses.
@@ -223,6 +248,7 @@ curl http://localhost:3000/shop.json
   - `size` (number): File size in bytes
 - `directories` (array): List of base directory aliases
 - `success` (string): Optional message from `SUCCESS_MESSAGE` env variable
+- `titledb` (object, optional): Per-title metadata keyed by 16-hex title ID, embedded for Tinfoil clients (omitted for CyberFoil and when no title matched). Each entry has `id`, `name`, `version`, `size`, and when available `region`, `releaseDate`, `rating`, `publisher`, `description`, and `iconUrl` (direct TitleDB artwork URL; updates/DLC inherit the base game's icon)
 
 **Notes:**
 - Files are scanned from all configured `GAMES_DIRECTORY` paths

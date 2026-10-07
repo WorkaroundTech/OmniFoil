@@ -359,8 +359,13 @@ export async function initializeTitleDB(): Promise<void> {
     
     isInitialized = true;
     console.log(`[TITLEDB] Initialization complete. ${titles.size} titles, ${versions.size} version entries`);
-  })();
-  
+  })().catch((error) => {
+    // Don't cache a failed attempt; let the next caller (e.g. the scheduled
+    // refresh) retry initialization from scratch.
+    initPromise = null;
+    throw error;
+  });
+
   return initPromise;
 }
 

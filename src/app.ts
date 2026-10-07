@@ -39,11 +39,12 @@ export async function setupServer() {
   initializeTitleDB()
     .then(() => {
       console.log(`> TitleDB initialization complete.`);
-      scheduleTitleDBRefresh();
     })
     .catch((err) => {
       console.error(`> Failed to initialize TitleDB:`, err);
-    });
+    })
+    // Schedule even if initialization failed so the refresh can recover it.
+    .finally(scheduleTitleDBRefresh);
 
   /**
    * Setup middleware chain with error handler
@@ -81,11 +82,29 @@ export async function setupServer() {
   });
 }
 
+// setTimeout delays above 2^31-1 ms overflow and fire immediately.
+const MAX_TIMEOUT_MS = 2 ** 31 - 1;
+
+/**
+ * Convert a TitleDB TTL (seconds) into a safe refresh delay in milliseconds.
+ * Returns null when the TTL is not a positive number, since a zero/NaN delay
+ * would re-download TitleDB in a tight loop.
+ */
+export function getTitleDBRefreshDelayMs(ttlSeconds: number): number | null {
+  if (!Number.isFinite(ttlSeconds) || ttlSeconds <= 0) return null;
+  return Math.min(ttlSeconds * 1000, MAX_TIMEOUT_MS);
+}
+
 function scheduleTitleDBRefresh() {
   if (!TITLEDB_ENABLED || !TITLEDB_AUTO_UPDATE) return;
 
-  const intervalMs = TITLEDB_CACHE_TTL * 1000;
-  console.log(`> TitleDB auto-refresh enabled (every ${TITLEDB_CACHE_TTL / 3600}h)`);
+  const intervalMs = getTitleDBRefreshDelayMs(TITLEDB_CACHE_TTL);
+  if (intervalMs === null) {
+    console.warn(`> TitleDB auto-refresh disabled: TITLEDB_CACHE_TTL must be a positive number of seconds (got "${process.env.TITLEDB_CACHE_TTL}")`);
+    return;
+  }
+
+  console.log(`> TitleDB auto-refresh enabled (every ${intervalMs / 1000 / 3600}h)`);
 
   const tick = () => {
     const t = setTimeout(async () => {
@@ -106,6 +125,7 @@ export function printEndpoints() {
   console.log(`\n>> Server is up and listening on port: ${PORT}`);
   console.log(`>> Endpoints:`);
   console.log(`   GET /                  - Index or shop payload (Tinfoil/CyberFoil headers)`);
+  console.log(`   GET /catalog           - Browser catalog view`);
   console.log(`   GET /shop.tfl          - Game library (legacy Tinfoil format)`);
   console.log(`   GET /api/shop/sections - CyberFoil sections payload`);
   console.log(`   GET /api/get_game/:id  - CyberFoil-compatible file downloads`);

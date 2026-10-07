@@ -53,6 +53,8 @@ Every handler receives `RequestContext` (src/types/index.ts) with `remoteAddress
 - CyberFoil is a Tinfoil-like request whose `user-agent` contains `cyberfoil`.
 - Browsers (`Accept: text/html`) get `src/index.html`.
 
+`GET /catalog` serves `src/catalog.html`, a static browser view that builds itself client-side from `/api/shop/sections` (the `all` section) plus the `titledb` map in `/shop.json`. Its artwork uses the direct TitleDB `iconUrl` from that map rather than the `/api/shop/icon` proxy, which is too slow for a full grid. CyberFoil's `icon_url` must keep pointing at the proxy.
+
 Legacy Tinfoil clients also hit `/shop.json` and `/shop.tfl`. CyberFoil uses `/api/shop/sections`, `/api/get_game/:id`, and `/api/shop/{icon,banner}/:title_id` (the title_id regexes require 16 hex chars).
 
 ### Shop catalog pipeline (src/services/shop.ts)
@@ -72,6 +74,8 @@ AppType values are numeric per CyberFoil spec: `0=BASE, 1=DLC, 2=UPDATE, 3=DEMO`
 ### TitleDB service (src/services/titledb.ts)
 
 Initialized in the background from `setupServer` (non-blocking). Downloads region/language-specific JSON from `https://tinfoil.media/repo/db`, caches under `TITLEDB_CACHE_DIR`, and exposes `getTitleInfo(titleId)`. Media artwork is lazily fetched and cached under `MEDIA_CACHE_DIR` via `src/lib/media-cache.ts`.
+
+When `TITLEDB_AUTO_UPDATE` is on, `setupServer` schedules `refreshTitleDB()` every `TITLEDB_CACHE_TTL` seconds (scheduled even if startup init failed; non-positive TTLs disable it). Refresh is non-destructive: it only swaps in new maps after a successful titles download. `initializeTitleDB` does not cache a rejected promise, so a later call can retry.
 
 ### Path security
 

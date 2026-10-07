@@ -41,7 +41,8 @@ All configuration is done through environment variables. No configuration files 
 | `TITLEDB_REGION` | string | `US` | No | TitleDB region: US, JP, BR, etc. |
 | `TITLEDB_LANGUAGE` | string | `en` | No | TitleDB language: en, ja, pt, etc. |
 | `TITLEDB_CACHE_DIR` | string | `./data/titledb` | No | Directory for TitleDB cache files |
-| `TITLEDB_AUTO_UPDATE` | boolean | `true` | No | Auto-download TitleDB on startup |
+| `TITLEDB_AUTO_UPDATE` | boolean | `true` | No | Download TitleDB on startup when stale, and refresh it periodically |
+| `TITLEDB_CACHE_TTL` | number | `86400` | No | TitleDB freshness window and auto-refresh interval in seconds (default 24 hours) |
 | `MEDIA_CACHE_DIR` | string | `./data/media` | No | Directory for cached media (icons/banners) |
 | `MEDIA_CACHE_TTL` | number | `604800` | No | Media cache TTL in seconds (default 7 days) |
 | `OVERRIDE_FILENAME` | string | `omnifoil-overrides.json` | No | Name of override files to look for |
@@ -459,7 +460,7 @@ data/titledb/
 
 **Default:** `true`
 
-**Description:** Automatically download/update TitleDB data on server startup.
+**Description:** Automatically download/update TitleDB data on server startup, and keep it fresh by refreshing it in the background every `TITLEDB_CACHE_TTL` seconds.
 
 **Examples:**
 ```bash
@@ -473,6 +474,9 @@ TITLEDB_AUTO_UPDATE=false
 **Behavior When Enabled:**
 - Downloads TitleDB files on startup if missing
 - Checks for updates (re-downloads if needed)
+- Refreshes TitleDB in the background every `TITLEDB_CACHE_TTL` seconds without restarting
+  - Refreshes are non-destructive: if a download fails, the previously loaded data keeps being served
+  - If startup initialization failed, the next scheduled refresh retries it
 - Startup may be slower on first run
 
 **Behavior When Disabled:**
@@ -483,6 +487,31 @@ TITLEDB_AUTO_UPDATE=false
 **Use Cases:**
 - **Enabled:** Production deployments, auto-updating metadata
 - **Disabled:** Air-gapped systems, pre-downloaded TitleDB files
+
+---
+
+#### TitleDB Cache TTL
+
+**Variable:** `TITLEDB_CACHE_TTL`
+
+**Default:** `86400` (24 hours in seconds)
+
+**Description:** How long downloaded TitleDB files are considered fresh. With `TITLEDB_AUTO_UPDATE=true`, this is also the interval for the background refresh.
+
+**Examples:**
+```bash
+# 24 hours (default)
+TITLEDB_CACHE_TTL=86400
+
+# 7 days
+TITLEDB_CACHE_TTL=604800
+```
+
+**Behavior (with `TITLEDB_AUTO_UPDATE=true`):**
+- On startup, cached files older than the TTL are re-downloaded
+- The background refresh runs every TTL seconds after startup
+- Values above ~24.8 days (`2147483` seconds) are capped to that interval for the background refresh
+- `0`, negative, or non-numeric values disable the background refresh (a warning is logged) and force a re-download on every startup
 
 ---
 
@@ -1220,6 +1249,7 @@ TITLEDB_REGION=US
 TITLEDB_LANGUAGE=en
 TITLEDB_CACHE_DIR=./data/titledb
 TITLEDB_AUTO_UPDATE=true
+TITLEDB_CACHE_TTL=86400
 MEDIA_CACHE_DIR=./data/media
 MEDIA_CACHE_TTL=604800
 ```
