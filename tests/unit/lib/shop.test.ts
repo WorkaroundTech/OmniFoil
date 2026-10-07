@@ -75,6 +75,9 @@ describe("lib/shop", () => {
           expect(typeof entry.name).toBe("string");
           expect(typeof entry.version).toBe("number");
           expect(typeof entry.size).toBe("number");
+          if (entry.iconUrl !== undefined) {
+            expect(entry.iconUrl).not.toStartWith("/api/shop/icon/");
+          }
         }
       }
     });

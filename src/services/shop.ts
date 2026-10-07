@@ -18,6 +18,7 @@ export interface ShopTitleDBEntry {
   rating?: number;
   publisher?: string;
   description?: string;
+  iconUrl?: string;
   size: number;
 }
 
@@ -518,6 +519,9 @@ export async function buildShopData(isCyberFoil: boolean = false): Promise<ShopD
         rating: info?.rating,
         publisher: info?.publisher,
         description: info?.description,
+        // Direct TitleDB artwork URL (override-aware) so browsers can load it
+        // without going through the /api/shop/icon proxy.
+        iconUrl: entry.iconUrl ?? undefined,
         size: entry.size,
       };
     }

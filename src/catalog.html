@@ -248,7 +248,7 @@
         <div class="modal-backdrop" id="modal-backdrop"></div>
         <div class="modal-panel">
             <div class="modal-head">
-                <img id="modal-thumb" class="modal-thumb" alt="">
+                <img id="modal-thumb" class="modal-thumb" alt="" referrerpolicy="no-referrer">
                 <div>
                     <h2 id="modal-title"></h2>
                     <div id="modal-summary" class="details-grid"></div>
@@ -339,7 +339,6 @@
                 appType: Number(item.app_type),
                 version: Number.isFinite(item.app_version) ? String(item.app_version) : "--",
                 category: typeof item.category === "string" ? item.category : "",
-                iconUrl: typeof item.icon_url === "string" ? item.icon_url : "",
                 size: Number(item.size),
                 url: typeof item.url === "string" ? item.url : "#",
                 filename: item.filename || parseFilenameFromUrl(item.url) || "",
@@ -355,7 +354,6 @@
                 appType: -1,
                 version: "--",
                 category: "",
-                iconUrl: "",
                 size: Number(file.size),
                 url: typeof file.url === "string" ? file.url : "#",
                 filename,
@@ -401,14 +399,12 @@
                         key,
                         title: item.name,
                         titleId: item.titleId,
-                        iconUrl: item.iconUrl,
                         files: [],
                     });
                 }
                 const group = grouped.get(key);
                 group.files.push(item);
                 if (!group.titleId && item.titleId) group.titleId = item.titleId;
-                if (!group.iconUrl && item.iconUrl) group.iconUrl = item.iconUrl;
             }
 
             const result = Array.from(grouped.values()).map((group) => {
@@ -450,6 +446,8 @@
                     maxVersion,
                     appTypeCounts,
                     meta,
+                    // Direct TitleDB artwork URL; avoids the slow /api/shop/icon proxy.
+                    iconUrl: meta && typeof meta.iconUrl === "string" ? meta.iconUrl : "",
                     categories: Array.from(categories),
                 };
             });
@@ -483,7 +481,7 @@
                 if (group.appTypeCounts.other) badges.push(`<span class="badge">Other ${group.appTypeCounts.other}</span>`);
 
                 const iconMarkup = group.iconUrl
-                    ? `<img class="thumb" src="${escapeAttr(group.iconUrl)}" alt="${escapeAttr(group.title)} icon" loading="lazy">`
+                    ? `<img class="thumb" src="${escapeAttr(group.iconUrl)}" alt="${escapeAttr(group.title)} icon" loading="lazy" referrerpolicy="no-referrer">`
                     : `<div class="thumb" aria-hidden="true"></div>`;
 
                 return `<article class="card" role="button" tabindex="0" data-index="${index}" aria-label="Open details for ${escapeAttr(group.title)}">
