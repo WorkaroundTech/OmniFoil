@@ -58,7 +58,7 @@ Returns a CyberFoil-compatible sections payload.
 
 Query params:
 
-- `limit` (optional, default `50`, minimum `1`): limits items in "new" and "recommended" sections per AeroFoil spec.
+- `limit` (optional, default `50`, minimum `1`): limits items in "new" and "recommended" sections per AeroFoil spec. The "all" section is never capped (CyberFoil cannot paginate), so `truncated` is always `false`.
 
 Response shape:
 

@@ -356,7 +356,7 @@ The following endpoints provide CyberFoil-compatible API for Nintendo Switch hom
 **Description:** Returns a CyberFoil-compatible sections payload with game metadata organized into sections: new, recommended, updates, DLC, and all games.
 
 **Query Parameters:**
-- `limit` (optional, number, default: `50`, minimum: `1`) - Maximum items per section for "new" and "recommended" sections
+- `limit` (optional, number, default: `50`, minimum: `1`) - Maximum items per section for "new" and "recommended" sections. The "all" section is never capped and always contains the full library.
 
 **Request:**
 ```bash
@@ -398,7 +398,7 @@ curl http://localhost:3000/api/shop/sections?limit=100
       "id": "all",
       "title": "All",
       "items": [...],
-      "total": 150,
+      "total": 1234,
       "truncated": false
     }
   ]

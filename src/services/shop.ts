@@ -127,13 +127,8 @@ function toSectionsItem(entry: CatalogFileEntry): ShopSectionsItem {
   };
 }
 
-function buildSectionsPayload(
-  entries: CatalogFileEntry[],
-  discoveryLimit: number,
-  allLimit: number,
-): ShopSectionsPayload {
+export function buildSectionsPayload(entries: CatalogFileEntry[], discoveryLimit: number): ShopSectionsPayload {
   const safeDiscoveryLimit = Math.max(1, Number.isFinite(discoveryLimit) ? Math.floor(discoveryLimit) : 50);
-  const safeAllLimit = Math.max(1, Number.isFinite(allLimit) ? Math.floor(allLimit) : 150);
 
   const matchedEntries = entries.filter((entry) => entry.hasTitleDbMatch);
   const otherEntries = entries.filter((entry) => !entry.hasTitleDbMatch);
@@ -193,14 +188,14 @@ function buildSectionsPayload(
 
   // `all` mirrors AeroFoil's `base_items + update_items_full + dlc_items_full`
   // sorted alphabetically — a single browseable list of every owned matched
-  // entry, not just base games.
+  // entry, not just base games. It is never capped: CyberFoil can't paginate,
+  // and its search, sort and base-only filter only operate on the `all` section.
   const allMatched = [...baseGames, ...dedupedUpdates, ...dlc].sort((a, b) => {
     const nameA = a.titleName || a.name;
     const nameB = b.titleName || b.name;
     return nameA.localeCompare(nameB);
   });
   const allItems = allMatched.map(toSectionsItem);
-  const limitedAllItems = allItems.slice(0, safeAllLimit);
 
   const otherItems = [...otherEntries]
     .sort((a, b) => (a.titleName || a.name).localeCompare(b.titleName || b.name))
@@ -212,13 +207,7 @@ function buildSectionsPayload(
       { id: "recommended", title: "Recommended", items: recommendedItems },
       { id: "updates", title: "Updates", items: updateItems },
       { id: "dlc", title: "DLC", items: dlcItems },
-      {
-        id: "all",
-        title: "All",
-        items: limitedAllItems,
-        total: allItems.length,
-        truncated: limitedAllItems.length < allItems.length,
-      },
+      { id: "all", title: "All", items: allItems, total: allItems.length, truncated: false },
       { id: "other", title: "Other", items: otherItems },
     ],
   };
@@ -426,14 +415,9 @@ async function buildShopCatalog(discoveryLimit: number = 50): Promise<ShopCatalo
     shopData.referrer = REFERRER;
   }
 
-  // The `all` section is server-controlled and ignores any client-provided limit:
-  // 500 items when any entry was enriched from TitleDB, 150 otherwise.
-  const titleDbLoaded = entries.some((entry) => entry.iconUrl !== null);
-  const allLimit = titleDbLoaded ? 500 : 150;
-
   return {
     shopData,
-    sectionsPayload: buildSectionsPayload(entries, discoveryLimit, allLimit),
+    sectionsPayload: buildSectionsPayload(entries, discoveryLimit),
     entries,
   };
 }
@@ -461,7 +445,7 @@ export async function getCatalogEntryById(id: number): Promise<CatalogFileEntry 
 export async function buildShopSections(discoveryLimit: number = 50): Promise<ShopSectionsPayload> {
   const catalog = await getShopCatalog(false, discoveryLimit);
 
-  // `all` is server-controlled and is not affected by the client limit.
+  // `all` always holds the full library and is not affected by the client limit.
   // Trim cached discovery sections down if the caller asked for fewer than the cache holds.
   const needsTrim = catalog.sectionsPayload.sections.some(
     (section) => (section.id === "new" || section.id === "recommended") && section.items.length > discoveryLimit,

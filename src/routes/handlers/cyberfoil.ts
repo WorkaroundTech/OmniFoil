@@ -38,7 +38,7 @@ function sanitizeFilename(filename: string): string {
 const sectionsHandlerImpl: Handler = async (req: Request, ctx: RequestContext) => {
   const url = new URL(req.url);
   // `limit` only controls the `new` and `recommended` sections. The `all` section
-  // is server-controlled (500 when TitleDB has data, 150 otherwise).
+  // always contains the full library.
   const rawLimit = parseInt(url.searchParams.get("limit") || "50", 10);
   const discoveryLimit = Number.isFinite(rawLimit) ? Math.max(1, rawLimit) : 50;
 

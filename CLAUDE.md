@@ -67,7 +67,7 @@ This is the core business logic and the most complex module:
 4. **Build sections**: `buildSectionsPayload` builds `new` (by releaseDate), `recommended` (by rating), `updates` (grouped by baseTitleId, latest version wins via `compareVersions`), `dlc`, `all` (alpha), `other` (unmatched entries). Only entries with a resolved titleId appear in the first four; unmatched ones go to "Other".
 5. **Cache**: Results are cached in-module for `CACHE_TTL` seconds. `getCatalogEntryById` falls back to a forced refresh if an ID isn't found (handles stale cache on download).
 
-The **`all` section is server-controlled** — it ignores any client-provided limit. It caps at 500 when TitleDB data loaded, else 150. The `discoveryLimit` parameter affects `new`/`recommended` only.
+The **`all` section is never capped** — it ignores any client-provided limit and always contains every matched entry. CyberFoil can't paginate, and its search, sort, and "base only" filter only operate on the section whose id is exactly `"all"`, so don't truncate or split it (AeroFoil dropped its cap for the same reason). The `discoveryLimit` parameter affects `new`/`recommended` only.
 
 AppType values are numeric per CyberFoil spec: `0=BASE, 1=DLC, 2=UPDATE, 3=DEMO`.
 
