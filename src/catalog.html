@@ -173,6 +173,35 @@
             line-height: 1.45;
             white-space: pre-wrap;
         }
+        .bundle-bar[hidden] {
+            display: none;
+        }
+        .bundle-bar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        .action {
+            border: 1px solid #2f6db3;
+            background: #1d4f86;
+            border-radius: 8px;
+            color: #f2f2f2;
+            font-size: 14px;
+            padding: 7px 12px;
+            cursor: pointer;
+        }
+        .action:hover {
+            background: #2460a3;
+        }
+        .bundle-summary {
+            font-size: 13px;
+            color: #acacac;
+        }
+        tr.in-bundle td:first-child {
+            box-shadow: inset 3px 0 0 #4da6ff;
+        }
         table {
             width: 100%;
             border-collapse: collapse;
@@ -256,6 +285,10 @@
                 <button type="button" class="close" id="modal-close">Close</button>
             </div>
             <p id="modal-synopsis" class="synopsis"></p>
+            <div id="modal-bundle" class="bundle-bar" hidden>
+                <button type="button" class="action" id="modal-bundle-download"></button>
+                <span id="modal-bundle-summary" class="bundle-summary"></span>
+            </div>
             <table>
                 <thead>
                     <tr>
@@ -285,8 +318,17 @@
         const modalSummaryEl = document.getElementById("modal-summary");
         const modalSynopsisEl = document.getElementById("modal-synopsis");
         const modalFilesEl = document.getElementById("modal-files");
+        const modalBundleEl = document.getElementById("modal-bundle");
+        const modalBundleButtonEl = document.getElementById("modal-bundle-download");
+        const modalBundleSummaryEl = document.getElementById("modal-bundle-summary");
+        // Browsers can drop downloads started in the same tick, so space them out.
+        const DOWNLOAD_STAGGER_MS = 600;
+        const downloadQueue = [];
+        const queuedUrls = new Set();
+        let downloadTimer = null;
         const groups = [];
         let activeCard = null;
+        let activeBundle = [];
 
         function escapeHtml(value) {
             return String(value)
@@ -456,6 +498,62 @@
             return result;
         }
 
+        // One base, the newest update and the newest copy of each DLC. Duplicates
+        // (same title in several formats or mounts) collapse to a single file.
+        function pickBundle(group) {
+            const isNewer = (file, current) => !current || compareVersionStrings(file.version, current.version) > 0;
+            let base = null;
+            let update = null;
+            const dlcByAppId = new Map();
+
+            for (const file of group.files) {
+                if (file.appType === 0) {
+                    if (isNewer(file, base)) base = file;
+                } else if (file.appType === 2) {
+                    if (isNewer(file, update)) update = file;
+                } else if (file.appType === 1) {
+                    const key = file.appId || file.url;
+                    if (isNewer(file, dlcByAppId.get(key))) dlcByAppId.set(key, file);
+                }
+            }
+
+            return { base, update, dlc: Array.from(dlcByAppId.values()) };
+        }
+
+        function triggerDownload(file) {
+            const link = document.createElement("a");
+            link.href = file.url;
+            link.download = file.filename || "";
+            link.style.display = "none";
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+        }
+
+        function drainDownloadQueue() {
+            const file = downloadQueue.shift();
+            if (!file) {
+                downloadTimer = null;
+                queuedUrls.clear();
+                return;
+            }
+            triggerDownload(file);
+            downloadTimer = setTimeout(drainDownloadQueue, DOWNLOAD_STAGGER_MS);
+        }
+
+        // Returns how many files were newly queued; files already pending are skipped
+        // so a double click doesn't download everything twice.
+        function enqueueDownloads(files) {
+            const added = files.filter((file) => !queuedUrls.has(file.url));
+            for (const file of added) {
+                queuedUrls.add(file.url);
+                downloadQueue.push(file);
+            }
+            // Start right away so the first download stays inside the click's user gesture.
+            if (downloadTimer === null) drainDownloadQueue();
+            return added.length;
+        }
+
         function renderStatus(message) {
             statusEl.textContent = message;
             statusEl.style.display = "block";
@@ -518,8 +616,25 @@
 
             modalSynopsisEl.textContent = group.meta?.description || "No synopsis available.";
 
+            const bundle = pickBundle(group);
+            activeBundle = [bundle.base, bundle.update, ...bundle.dlc].filter(Boolean);
+            const inBundle = new Set(activeBundle);
+            if (activeBundle.length > 0) {
+                const parts = [];
+                if (bundle.base) parts.push("base");
+                if (bundle.update) parts.push(`update v${bundle.update.version}`);
+                if (bundle.dlc.length) parts.push(`${bundle.dlc.length} DLC`);
+                const bundleSize = activeBundle.reduce((sum, file) => sum + (Number.isFinite(file.size) ? file.size : 0), 0);
+                const fileCount = `${activeBundle.length} file${activeBundle.length === 1 ? "" : "s"}`;
+                modalBundleButtonEl.textContent = `Download ${parts.join(" + ")}`;
+                modalBundleSummaryEl.textContent = `${fileCount} · ${bytesToHuman(bundleSize)} · highlighted below`;
+                modalBundleEl.hidden = false;
+            } else {
+                modalBundleEl.hidden = true;
+            }
+
             modalFilesEl.innerHTML = group.files.map((file) => {
-                return `<tr>
+                return `<tr${inBundle.has(file) ? ' class="in-bundle"' : ""}>
                     <td>${escapeHtml(APP_TYPE_LABELS[file.appType] || "Unknown")}</td>
                     <td>${escapeHtml(file.version)}</td>
                     <td>${escapeHtml(bytesToHuman(file.size))}</td>
@@ -601,6 +716,12 @@
 
         modalCloseEl.addEventListener("click", closeModal);
         modalBackdropEl.addEventListener("click", closeModal);
+        modalBundleButtonEl.addEventListener("click", () => {
+            const added = enqueueDownloads(activeBundle);
+            modalBundleSummaryEl.textContent = added > 0
+                ? `Starting ${added} download${added === 1 ? "" : "s"}. Your browser may ask to allow multiple downloads.`
+                : "These files are already queued.";
+        });
         document.addEventListener("keydown", (event) => {
             if (event.key === "Escape" && !modalEl.hidden) closeModal();
         });

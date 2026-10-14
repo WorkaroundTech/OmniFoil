@@ -200,6 +200,7 @@ curl http://localhost:3000/catalog
 **Notes:**
 - The page loads its data client-side from [`GET /api/shop/sections`](#get-apishopsections) (the `all` section) and [`GET /shop.json`](#get-shopjson) (the `titledb` map)
 - Artwork is loaded directly from the TitleDB `iconUrl` in the `titledb` map, not through `/api/shop/icon/:title_id`
+- The details dialog has a bundle download button that starts one download per file for the base game, its latest update, and every DLC. Duplicates are collapsed: one base, the newest update, and the newest copy of each DLC (by `app_id`). Downloads are started about 600 ms apart, so the browser may ask the user to allow multiple downloads
 - If the `all` section is empty, the page falls back to the plain `files` list from `shop.json`
 - Supports `GET` and `HEAD`
 
