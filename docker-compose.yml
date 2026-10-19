@@ -18,6 +18,16 @@ services:
       - AUTH_USER=${AUTH_USER}
       - AUTH_PASS=${AUTH_PASS}
       - AUTH_CREDENTIALS=${AUTH_CREDENTIALS}
+      # Auto-downloader (Deluge). Requires auth above; disabled when DELUGE_URL is empty.
+      - DELUGE_URL=${DELUGE_URL:-}
+      - DELUGE_PASSWORD=${DELUGE_PASSWORD:-deluge}
+      - DELUGE_HOST_ID=${DELUGE_HOST_ID:-}
+      - DELUGE_DOWNLOAD_PATH=${DELUGE_DOWNLOAD_PATH:-}
+      - DELUGE_MOVE_COMPLETED_PATH=${DELUGE_MOVE_COMPLETED_PATH:-}
+      - DELUGE_STOP_RATIO=${DELUGE_STOP_RATIO:-}
+      - DELUGE_TIMEOUT_MS=${DELUGE_TIMEOUT_MS:-10000}
+      - DOWNLOADER_MAX_TORRENT_BYTES=${DOWNLOADER_MAX_TORRENT_BYTES:-1048576}
+      - DOWNLOADER_RATE_LIMIT=${DOWNLOADER_RATE_LIMIT:-10}
     volumes:
       # Reuse repository data directory inside the container
       - ./data:/app/data
