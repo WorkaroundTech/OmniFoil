@@ -766,6 +766,34 @@ See [docs/omnifoil-overrides-example.json](omnifoil-overrides-example.json) for 
 
 ---
 
+### Auto-Downloader (Deluge)
+
+**Variables:** `DELUGE_URL`, `DELUGE_PASSWORD`, `DELUGE_HOST_ID`, `DELUGE_DOWNLOAD_PATH`, `DELUGE_MOVE_COMPLETED_PATH`, `DELUGE_STOP_RATIO`, `DELUGE_TIMEOUT_MS`, `DOWNLOADER_MAX_TORRENT_BYTES`, `DOWNLOADER_RATE_LIMIT`
+
+**Default:** disabled (`DELUGE_URL` unset)
+
+**Description:** The `/downloader` page accepts a `.torrent` file and adds it to a Deluge server through the Deluge Web UI JSON-RPC API. Every Deluge option is set here; none can be changed from the page.
+
+| Variable | Default | Meaning |
+|----------|---------|---------|
+| `DELUGE_URL` | _(unset)_ | Deluge **Web UI** URL, e.g. `http://deluge:8112`. Setting it enables the feature |
+| `DELUGE_PASSWORD` | `deluge` | Web UI password |
+| `DELUGE_HOST_ID` | first listed | Daemon id to attach the Web UI to when it is not connected |
+| `DELUGE_DOWNLOAD_PATH` | Deluge default | Download location, as seen by the Deluge server |
+| `DELUGE_MOVE_COMPLETED_PATH` | _(off)_ | When set, finished torrents are moved here (path on the Deluge server) |
+| `DELUGE_STOP_RATIO` | _(off)_ | Positive number; when set, torrents stop seeding at this ratio. Invalid values are ignored |
+| `DELUGE_TIMEOUT_MS` | `10000` | Timeout per Deluge request |
+| `DOWNLOADER_MAX_TORRENT_BYTES` | `1048576` | Largest accepted `.torrent` |
+| `DOWNLOADER_RATE_LIMIT` | `10` | Uploads per minute per user |
+
+**Security:**
+- **Requires authentication.** If `DELUGE_URL` is set but no `AUTH_*` credentials are configured, both endpoints answer `403`.
+- Uploads must send the `X-OmniFoil-Upload` header (the page does), which blocks cross-site form posts that would ride on the browser's cached Basic Auth credentials.
+- The request body is read with a hard size cap, then the file is parsed as bencode with a depth limit and checked for a valid `info` dictionary and safe names/paths before Deluge sees it.
+- Deluge error details are logged server-side only; clients get a generic `502`.
+
+---
+
 ### Referrer Configuration
 
 **Variable:** `REFERRER`

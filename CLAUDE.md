@@ -57,6 +57,12 @@ Every handler receives `RequestContext` (src/types/index.ts) with `remoteAddress
 
 Legacy Tinfoil clients also hit `/shop.json` and `/shop.tfl`. CyberFoil uses `/api/shop/sections`, `/api/get_game/:id`, and `/api/shop/{icon,banner}/:title_id` (the title_id regexes require 16 hex chars).
 
+### Auto-downloader (Deluge)
+
+`GET /downloader` (src/downloader.html) and `POST /api/downloader/torrent` live in `src/routes/handlers/downloader.ts`, built by `createDownloaderHandlers(deps)` so tests can inject a fake Deluge client. The upload is size-capped while streaming, parsed by `src/lib/torrent.ts` (strict bencode + `info` checks), then sent by `src/services/deluge.ts` (Web UI JSON-RPC over `fetch`: `auth.login` → `web.connected`/`web.connect` → `core.add_torrent_file`). All Deluge options (`DELUGE_*`) are env-only and never accepted from the client.
+
+It **fails closed**: disabled without `DELUGE_URL`, and `403` without configured auth (the global `authorize` middleware lets everything through when no users exist, so the handler re-checks). Uploads need the `X-OmniFoil-Upload` header as a CSRF guard, and are rate limited per user. `Bun.serve` sets `maxRequestBodySize` from `DOWNLOADER_MAX_BODY_BYTES`, so no other route may rely on large request bodies.
+
 ### Shop catalog pipeline (src/services/shop.ts)
 
 This is the core business logic and the most complex module:

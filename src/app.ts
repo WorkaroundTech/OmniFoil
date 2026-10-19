@@ -3,7 +3,7 @@
  * Configures server, middleware, and routing
  */
 
-import { PORT, BASES, getAuthUsers, CACHE_TTL, SUCCESS_MESSAGE, LOG_FORMAT, TITLEDB_ENABLED, TITLEDB_AUTO_UPDATE, TITLEDB_CACHE_TTL } from "./config";
+import { PORT, BASES, getAuthUsers, CACHE_TTL, SUCCESS_MESSAGE, LOG_FORMAT, TITLEDB_ENABLED, TITLEDB_AUTO_UPDATE, TITLEDB_CACHE_TTL, DOWNLOADER_ENABLED, DOWNLOADER_MAX_BODY_BYTES, DELUGE_URL, DELUGE_DOWNLOAD_PATH, DELUGE_MOVE_COMPLETED_PATH, DELUGE_STOP_RATIO } from "./config";
 import { type RequestContext } from "./types";
 import { authorize, timing, logging, errorHandler, compose } from "./middleware";
 import { router } from "./routes";
@@ -33,6 +33,14 @@ export async function setupServer() {
   }
 
   console.log(`> Log format: ${LOG_FORMAT}`);
+
+  if (!DOWNLOADER_ENABLED) {
+    console.log(`> Downloader disabled (DELUGE_URL not set)`);
+  } else if (authUsers.length === 0) {
+    console.warn(`> Downloader DISABLED: DELUGE_URL is set but authentication is not configured`);
+  } else {
+    console.log(`> Downloader enabled -> ${DELUGE_URL} (download: ${DELUGE_DOWNLOAD_PATH || "deluge default"}, move completed: ${DELUGE_MOVE_COMPLETED_PATH || "off"}, stop ratio: ${DELUGE_STOP_RATIO ?? "off"})`);
+  }
 
   // Initialize TitleDB in the background so startup is not blocked
   console.log(`\n> Initializing TitleDB...`);
@@ -64,6 +72,7 @@ export async function setupServer() {
   return Bun.serve({
     port: PORT,
     hostname: "0.0.0.0", // Bind to all interfaces (required for WSL/Docker)
+    maxRequestBodySize: DOWNLOADER_MAX_BODY_BYTES, // Only the torrent upload accepts a body
     async fetch(req, server) {
       const userAgent = req.headers.get("user-agent") || "";
       
@@ -129,5 +138,6 @@ export function printEndpoints() {
   console.log(`   GET /shop.tfl          - Game library (legacy Tinfoil format)`);
   console.log(`   GET /api/shop/sections - CyberFoil sections payload`);
   console.log(`   GET /api/get_game/:id  - CyberFoil-compatible file downloads`);
+  console.log(`   GET /downloader        - Torrent upload page (requires auth + DELUGE_URL)`);
   console.log(`   GET /files/*           - File downloads (legacy path-based)`);
 }

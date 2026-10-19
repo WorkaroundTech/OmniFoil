@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OmniFoil Downloader</title>
+    <style>
+        :root { color-scheme: dark; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            max-width: 640px;
+            margin: 48px auto;
+            padding: 20px;
+            background: #0f0f0f;
+            color: #e0e0e0;
+        }
+        h1 { margin: 0 0 8px; color: #ffd700; }
+        p { margin: 0 0 18px; color: #c9c9c9; }
+        a { color: #4da6ff; text-decoration: none; }
+        .drop {
+            display: block;
+            border: 2px dashed #333;
+            border-radius: 10px;
+            background: #171717;
+            padding: 36px 16px;
+            text-align: center;
+            cursor: pointer;
+            color: #bdbdbd;
+        }
+        .drop:hover, .drop.over, .drop:focus-within { border-color: #4da6ff; }
+        .drop input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+        button {
+            margin-top: 14px;
+            background: #1a1a1a;
+            color: #e0e0e0;
+            border: 1px solid #4da6ff;
+            border-radius: 8px;
+            padding: 10px 18px;
+            font-size: 15px;
+            cursor: pointer;
+        }
+        button:disabled { opacity: .5; cursor: default; border-color: #333; }
+        .status {
+            margin-top: 16px;
+            padding: 12px 14px;
+            border-radius: 8px;
+            background: #1a1a1a;
+            border: 1px solid #2e2e2e;
+            min-height: 1.2em;
+        }
+        .status.ok { border-color: #3a8a4f; color: #8fe0a3; }
+        .status.err { border-color: #a04040; color: #ff9b9b; }
+    </style>
+</head>
+<body>
+    <h1>Downloader</h1>
+    <p>Upload a <code>.torrent</code> file and it will be added to Deluge. <a href="/">Back</a></p>
+
+    <form id="form">
+        <label class="drop" id="drop">
+            <input type="file" id="file" accept=".torrent,application/x-bittorrent">
+            <span id="label">Drop a .torrent here or click to choose</span>
+        </label>
+        <button type="submit" id="submit" disabled>Add to Deluge</button>
+    </form>
+    <div class="status" id="status" role="status" aria-live="polite"></div>
+
+    <script>
+        const form = document.getElementById("form");
+        const drop = document.getElementById("drop");
+        const input = document.getElementById("file");
+        const label = document.getElementById("label");
+        const submit = document.getElementById("submit");
+        const status = document.getElementById("status");
+        let selected = null;
+
+        function show(message, kind) {
+            status.textContent = message;
+            status.className = "status" + (kind ? " " + kind : "");
+        }
+
+        // fetch() refuses URLs with embedded credentials (http://user:pass@host/...), which is
+        // how the page is reached when credentials are typed into the address bar. Use a
+        // credential-free URL and pass them as an explicit Authorization header instead.
+        function uploadHeaders() {
+            const headers = { "X-OmniFoil-Upload": "1" };
+            if (location.username || location.password) {
+                const creds = decodeURIComponent(location.username) + ":" + decodeURIComponent(location.password);
+                const bytes = new TextEncoder().encode(creds);
+                headers["Authorization"] = "Basic " + btoa(String.fromCharCode(...bytes));
+            }
+            return headers;
+        }
+
+        function choose(file) {
+            selected = file && file.name.toLowerCase().endsWith(".torrent") ? file : null;
+            label.textContent = selected ? selected.name : "Drop a .torrent here or click to choose";
+            submit.disabled = !selected;
+            show(file && !selected ? "Only .torrent files are accepted" : "", file && !selected ? "err" : "");
+        }
+
+        input.addEventListener("change", () => choose(input.files[0]));
+        drop.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("over"); });
+        drop.addEventListener("dragleave", () => drop.classList.remove("over"));
+        drop.addEventListener("drop", (e) => {
+            e.preventDefault();
+            drop.classList.remove("over");
+            choose(e.dataTransfer.files[0]);
+        });
+
+        form.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            if (!selected) return;
+            submit.disabled = true;
+            show("Uploading...");
+            const data = new FormData();
+            data.append("torrent", selected);
+            let res;
+            try {
+                res = await fetch(location.origin + "/api/downloader/torrent", {
+                    method: "POST",
+                    headers: uploadHeaders(),
+                    body: data,
+                    credentials: "same-origin",
+                });
+            } catch (err) {
+                console.error("Upload fetch failed", err);
+                show("Network error (request failed before a response): " + err, "err");
+                submit.disabled = false;
+                return;
+            }
+            try {
+                if (res.ok) {
+                    const result = await res.json();
+                    show("Added \"" + result.name + "\" to Deluge", "ok");
+                    input.value = "";
+                    choose(null);
+                } else {
+                    show((await res.text()) || "Upload failed (" + res.status + ")", "err");
+                    submit.disabled = false;
+                }
+            } catch (err) {
+                console.error("Could not read upload response", err);
+                show("Got HTTP " + res.status + " but could not read the response: " + err, "err");
+                submit.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

@@ -11,6 +11,7 @@ import { cyberfoilSectionsHandler, getGameHandler } from "./handlers/cyberfoil";
 import { getIcon, getBanner } from "./handlers/media";
 import { savesListHandler } from "./handlers/saves";
 import { catalogPageHandler } from "./handlers/catalog";
+import { downloaderPageHandler, downloaderUploadHandler } from "./handlers/downloader";
 
 export const router: Handler = async (req: Request, ctx: RequestContext) => {
   const url = new URL(req.url);
@@ -58,6 +59,15 @@ export const router: Handler = async (req: Request, ctx: RequestContext) => {
     return savesListHandler(req, ctx);
   }
 
-  // 8. Health/Status endpoint
+  // 8. Auto-downloader (Deluge)
+  if (url.pathname === "/downloader") {
+    return downloaderPageHandler(req, ctx);
+  }
+
+  if (url.pathname === "/api/downloader/torrent") {
+    return downloaderUploadHandler(req, ctx);
+  }
+
+  // 9. Health/Status endpoint
   return new Response(`* OmniFoil is active.\nIndex: / or /tinfoil\nShop: /shop.tfl`, { status: 200 });
 };

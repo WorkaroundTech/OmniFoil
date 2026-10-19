@@ -98,3 +98,29 @@ export const MEDIA_CACHE_TTL = parseInt(process.env.MEDIA_CACHE_TTL || "604800")
 export const OVERRIDE_FILENAME = process.env.OVERRIDE_FILENAME || "omnifoil-overrides.json";
 export const OVERRIDES_ENABLED = process.env.OVERRIDES_ENABLED !== "false"; // Default enabled
 
+
+// Auto-downloader (Deluge) configuration.
+// Everything here is env-only on purpose: the upload page never exposes these settings.
+export const DELUGE_URL = (process.env.DELUGE_URL || "").trim().replace(/\/+$/, "").replace(/\/json$/, "");
+export const DELUGE_PASSWORD = process.env.DELUGE_PASSWORD ?? "deluge"; // Deluge Web UI default
+export const DELUGE_HOST_ID = process.env.DELUGE_HOST_ID || ""; // Daemon to connect the Web UI to (default: first listed)
+export const DELUGE_DOWNLOAD_PATH = (process.env.DELUGE_DOWNLOAD_PATH || "").trim(); // Path on the Deluge server
+export const DELUGE_MOVE_COMPLETED_PATH = (process.env.DELUGE_MOVE_COMPLETED_PATH || "").trim(); // Path on the Deluge server
+export const DELUGE_TIMEOUT_MS = parseInt(process.env.DELUGE_TIMEOUT_MS || "10000");
+
+/** Parse a stop-at-ratio value. Returns undefined when unset, non-numeric or not positive. */
+export function parseStopRatio(raw: string | undefined): number | undefined {
+  if (!raw || raw.trim() === "") return undefined;
+  const ratio = Number(raw);
+  return Number.isFinite(ratio) && ratio > 0 ? ratio : undefined;
+}
+export const DELUGE_STOP_RATIO = parseStopRatio(process.env.DELUGE_STOP_RATIO);
+
+// Upload protections
+export const DOWNLOADER_MAX_TORRENT_BYTES = parseInt(process.env.DOWNLOADER_MAX_TORRENT_BYTES || "1048576"); // 1 MiB
+export const DOWNLOADER_RATE_LIMIT = parseInt(process.env.DOWNLOADER_RATE_LIMIT || "10"); // uploads per minute, per user
+// Multipart envelope overhead allowed on top of the file itself
+export const DOWNLOADER_MAX_BODY_BYTES = DOWNLOADER_MAX_TORRENT_BYTES + 16 * 1024;
+
+/** The downloader is enabled once a Deluge Web UI URL is configured. */
+export const DOWNLOADER_ENABLED = DELUGE_URL.length > 0;

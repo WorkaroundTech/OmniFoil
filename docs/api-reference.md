@@ -206,6 +206,38 @@ curl http://localhost:3000/catalog
 
 ---
 
+### GET /downloader
+
+**Description:** Browser page for uploading a `.torrent` file to Deluge. See [Auto-Downloader](configuration.md#auto-downloader-deluge).
+
+**Response:** `200` HTML (`src/downloader.html`), `503` if `DELUGE_URL` is unset, `403` if authentication is not configured, `401` without valid credentials. Supports `GET` and `HEAD`.
+
+---
+
+### POST /api/downloader/torrent
+
+**Description:** Validates a `.torrent` and adds it to Deluge using the server-side options from the environment.
+
+**Request:** `multipart/form-data` with a `torrent` file field, authenticated, and the header `X-OmniFoil-Upload: 1`.
+```bash
+curl -u user:pass -H 'X-OmniFoil-Upload: 1' -F torrent=@game.torrent http://localhost:3000/api/downloader/torrent
+```
+
+**Response:** `201` `{"ok":true,"name":"...","files":N}`
+
+| Status | Reason |
+|--------|--------|
+| 400 | Missing/empty `torrent` field, not a `.torrent` filename, malformed multipart |
+| 403 | Missing guard header, cross-site request, or auth not configured |
+| 409 | Torrent already in Deluge |
+| 413 | Upload larger than `DOWNLOADER_MAX_TORRENT_BYTES` |
+| 415 | Not `multipart/form-data` |
+| 422 | Not a valid torrent (bad bencode, missing `info`, unsafe name/path) |
+| 429 | Rate limit exceeded (`Retry-After` set) |
+| 502 | Deluge unreachable or rejected the request |
+
+---
+
 ### GET /shop.json
 
 **Description:** Returns shop data in JSON format (legacy Tinfoil format). **Note:** CyberFoil clients should use `GET /` with Tinfoil headers instead for faster, more efficient CyberFoil-specific responses.
