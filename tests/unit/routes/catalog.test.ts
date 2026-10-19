@@ -20,6 +20,7 @@ describe("routes/catalog", () => {
 
     const body = await response.text();
     expect(body).toContain("<h1>Catalog</h1>");
+    expect(body).toContain('href="/downloader"');
   });
 
   it("should accept HEAD requests", async () => {

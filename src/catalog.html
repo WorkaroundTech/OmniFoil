@@ -41,6 +41,15 @@
             color: #4da6ff;
             text-decoration: none;
         }
+        .toolbar a.button {
+            background: #1a1a1a;
+            border: 1px solid #4da6ff;
+            border-radius: 8px;
+            padding: 6px 12px;
+        }
+        .toolbar a.button:hover {
+            background: #242424;
+        }
         .status {
             background: #1a1a1a;
             border: 1px solid #2e2e2e;
@@ -267,6 +276,7 @@
             <a href="/">Home</a>
             <span id="count">Games: --</span>
             <span id="source">Source: --</span>
+            <a class="button" href="/downloader">Add torrent</a>
         </div>
 
         <div id="status" class="status">Loading catalog...</div>
